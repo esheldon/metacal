@@ -204,7 +204,7 @@ class Metacal:
         )
 
         # the round gaussian reconvolution target, dilated by 1 + 2*step; the
-        # SAME target for every type (only the galaxy is sheared)
+        # same target for every type (only the galaxy is sheared)
         target_psf = get_azgauss_target_psf(psf_int, flux=self.psf_flux)
         self.target_psf = target_psf.dilate(1.0 + 2.0 * self.step)
 
@@ -237,7 +237,7 @@ class Metacal:
 
     def _khat(self, world_profile):
         """
-        the matched-grid k-array of a WORLD-frame profile: to image coords,
+        the matched-grid k-array of a world-frame profile: to image coords,
         drawKImage at dk, reorder to numpy fft layout, re-center
         """
         image_profile = self.wcs.profileToImage(world_profile)
@@ -438,7 +438,7 @@ def _predict_noise_var_factor(pts, pts_rot, hfilt, types):
     and the added correction variance is mean(H^2 * pts_rot) (both per unit
     input variance, by Parseval on the padded grid; the per-pixel variance of
     a filtered white field is the mean of the squared filter).  The corrected
-    variance lands at a COMMON level across types: the deficit fills every
+    variance lands at a common level across types: the deficit fills every
     type's m=0 (azimuthal-mean) power to a common level, and only m=0
     contributes to the total variance (the m=2/m=6 fills integrate to zero over
     each annulus).  So one number suffices; it is anchored on the noshear
@@ -462,9 +462,9 @@ def delta_transfer_kspace(
     the per-type metacal noise transfer P_t = |K_t|^2 on the padded Np x Np
     grid, computed k-natively: push a unit delta through ``Metacal`` and take
     |k-array|^2 directly (|fft2(delta)| = 1, so this is relative to a white
-    input).  ``Np`` (default galsim's draw size) MUST match the Metacal whose
+    input).  ``Np`` (default galsim's draw size) must match the Metacal whose
     noise this filter cancels.  ``rotation = 90 * galsim.degrees`` builds the
-    ROTATED transfer P_t^rot = |rotateback(metacal(delta))|^2 (the corr-field
+    rotated transfer P_t^rot = |rotateback(metacal(delta))|^2 (the corr-field
     transfer after the sky rotate-back).
 
     Returns the Np x Np power dict and the Np used.
@@ -544,12 +544,10 @@ def _shear_kwargs(t, step):
 
 def _wcs_and_matrix(wcs):
     """
-    resolve a wcs given as EITHER a galsim local/Jacobian wcs OR a 2x2
-    pixel->sky jacobian matrix (col, row order, M = [[dudx, dudy], [dvdx,
-    dvdy]]), and return the pair ``(galsim_wcs, matrix)`` ; the galsim wcs the
-    metacal draws with and the matrix used for the pixel scale and the
-    sky-angle deficit projection.  A galsim wcs is returned as-is with its
-    jacobian extracted; a matrix is wrapped in a ``galsim.JacobianWCS``.
+    resolve a wcs given as either a galsim local/Jacobian wcs or a 2x2
+    pixel->sky jacobian matrix
+
+    return both as (wcs, matrix)
     """
     if isinstance(wcs, galsim.BaseWCS):
         jac = wcs.jacobian()

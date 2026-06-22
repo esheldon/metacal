@@ -2,19 +2,31 @@
 
 Implementation of Metacalibration weak lensing shear calibration.
 
+This supercedes the metacal code that was part of ngmix.
+
+It uses a new "hybrid" noise correction that increases the noise by about 2%
+for typical PSFs, as compared to the old correction that increases it by
+sqrt(2) in all cases.  It uses the reconvolution kernel "azgauss" that is
+robust to noise and works well for even complex optical PSFs.
+
 ## What it does
+
+Runs the metacalibration algorithm on images.
 
 `metacal(image, psf_image, wcs, noise_image=noise_image)` metacalibrates an
 image and applies the cheap hybrid noise correction in one shared k-space
 frame:
 
-- the deconvolve / shear / reconvolve is kept in galsim k-space and sampled once
-  with `drawKImage` onto a numpy-fft-matched grid — no second, aliasing
-  real↔k round trip;
-- Uses the hybrid noise correction, rather than old "fixnoise".  This applies
-  a minimal amount of extra noise to reduce noise biases.
-  Typically increases noise by about 2.5%.  Works for non stationary
-  noise fields.
+Why a new package?
+------------------
+
+The new methods a clearly better than the old ones, but due to poor design
+choices in ngmix (using a "default keyword" structure for these features),
+there was no easy way to slot them in as the new defaults.  Easier to make a
+clean break.
+
+Examples
+---------
 
 ```python
 import galsim
