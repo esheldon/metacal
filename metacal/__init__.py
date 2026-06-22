@@ -1,8 +1,10 @@
+# flake8: noqa
 """
 metacal: the k-space-native metacalibration with the rotated-hybrid noise
-correction -- the validated subset of the mcal_hybrid research package, with the
+correction;the validated subset of the mcal_hybrid research package, with the
 winning choices baked in (see README).
 """
+
 from .kmetacal import (
     KMetacal,
     metacal,

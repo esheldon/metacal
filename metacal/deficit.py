@@ -12,6 +12,7 @@ small-gauss-tests / mcal_hybrid ``docs/cos4phi-gain-error.tex``).
 
 numpy only.
 """
+
 import numpy as np
 
 
@@ -20,23 +21,26 @@ def jacobian_matrix(jacobian):
     order, M = [[dudcol, dudrow], [dvdcol, dvdrow]] -- the matrix to pass as
     ``jac`` to ``common_harmonic_deficits`` (a diagonal scale is the identity
     no-op there, so it can always be passed)."""
-    return np.array([
-        [jacobian.dudcol, jacobian.dudrow],
-        [jacobian.dvdcol, jacobian.dvdrow],
-    ])
+    return np.array(
+        [
+            [jacobian.dudcol, jacobian.dudrow],
+            [jacobian.dvdcol, jacobian.dvdrow],
+        ]
+    )
 
 
 def _trapz_weights(theta, ibin, nb):
     """per-mode azimuthal trapezoidal (Voronoi / arc-length) quadrature weights
     for the annular m-mode projection.
 
-    Within each |k| annulus every mode is weighted by the angular gap it occupies
-    -- half the gap to each of its two cyclic neighbours -- and the weights are
-    normalized to sum to 1 over the annulus.  This is the trapezoidal rule on the
-    non-uniform ring of FFT modes: it approximates the continuum azimuthal average
-    and drives the square-lattice moments <cos 4theta>, <cos 8theta>, ... (which
-    bias the plain uniform mean and make the m=2 projection orientation dependent)
-    down to the trapezoidal error -- a rotation-covariant projection.
+    Within each |k| annulus every mode is weighted by the angular gap it
+    occupies, half the gap to each of its two cyclic neighbours, and the
+    weights are normalized to sum to 1 over the annulus.  This is the
+    trapezoidal rule on the non-uniform ring of FFT modes: it approximates the
+    continuum azimuthal average and drives the square-lattice moments <cos
+    4theta>, <cos 8theta>, ... (which bias the plain uniform mean and make the
+    m=2 projection orientation dependent) down to the trapezoidal error; a
+    rotation-covariant projection.
 
     Pure grid geometry (no power), so it could be precomputed once per grid.
     """
@@ -74,23 +78,23 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
     power m=2 isotropic.  Only m=2/m=6 (the harmonics the 90-degree rotation
     flips, both lattice-aliasing immune) and the mean are filled; m=4 is left
     alone (rotation-invariant, spin-4, does not bias shear).  Filling harmonics
-    rather than (annulus_max - P_t) avoids clipping at the m=4 peaks, which would
-    leave a spurious m=2.
+    rather than (annulus_max - P_t) avoids clipping at the m=4 peaks, which
+    would leave a spurious m=2.
 
     The azimuthal average uses the rotation-covariant TRAPEZOIDAL quadrature
-    (``_trapz_weights``): each mode is weighted by its angular Voronoi cell, which
-    approximates the continuum integral and removes the square-lattice cos(4 phi)
-    gain error of the plain discrete mean (that gain error is the rotation leak --
-    it fills the metacal g1/g2 deficits, 45 deg apart, at unequal gains -> a
-    response anisotropy).
+    (``_trapz_weights``): each mode is weighted by its angular Voronoi cell,
+    which approximates the continuum integral and removes the square-lattice
+    cos(4 phi) gain error of the plain discrete mean (that gain error is the
+    rotation leak; it fills the metacal g1/g2 deficits, 45 deg apart, at
+    unequal gains -> a response anisotropy).
 
     The m-mode projection is done in SKY angle via ``jac`` (the pixel->sky
     jacobian): the shear bias is a SKY-frame contraction Tr[Q C], so it is the
     SKY-frame spin-2 that must be cancelled.  A diagonal scale maps to the
-    identity (no-op); a pure rotation rotates theta by the wcs angle (absorbed by
-    the (c_m, s_m) reconstruction, also a no-op); only a non-conformal shear
-    actually changes the projection, where it is the correct target.  So ``jac``
-    can always be passed.
+    identity (no-op); a pure rotation rotates theta by the wcs angle (absorbed
+    by the (c_m, s_m) reconstruction, also a no-op); only a non-conformal shear
+    actually changes the projection, where it is the correct target.  So
+    ``jac`` can always be passed.
 
     Parameters
     ----------
@@ -104,9 +108,9 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
         harmonics filled to the common amplitude (default (2, 6))
     jac: (2, 2) array, optional
         the pixel->sky jacobian M = scale*R(theta)*S(g) in (col, row) order
-        (``wcs.distortion_matrix``).  k_sky = scale * M^{-T} k_pix is used for the
-        binning and projection.  Default None: the raw pixel frame (= a diagonal
-        wcs).
+        (``wcs.distortion_matrix``).  k_sky = scale * M^{-T} k_pix is used for
+        the binning and projection.  Default None: the raw pixel frame (= a
+        diagonal wcs).
 
     Returns
     -------
@@ -138,7 +142,8 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
 
     def az_avg(x):
         return np.bincount(
-            ibin.ravel(), weights=(wgrid * x).ravel(), minlength=nb)
+            ibin.ravel(), weights=(wgrid * x).ravel(), minlength=nb
+        )
 
     # decompose each type's power azimuthally: the m=0 mean profile and the
     # (c_m, s_m) m-mode coefficients per annulus
