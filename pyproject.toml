@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metacal"
+version = "0.1.0"
+description = "k-space-native metacalibration with the rotated-hybrid noise correction"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Erin Sheldon" }]
+dependencies = ["numpy", "galsim"]
+
+[project.optional-dependencies]
+# ngmix (the mcal-gauss-stability branch) supplies the azgauss reconvolution
+# target psf used by the metacal; required at runtime but installed separately
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["metacal*"]
