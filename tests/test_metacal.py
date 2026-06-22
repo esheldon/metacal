@@ -1,5 +1,5 @@
 """
-tests for the k-space metacal (metacal.kmetacal).
+tests for metacal (metacal.metacal).
 
 The key correctness check is that with galsim's own padding the k-native
 metacal field EQUALS ngmix's real-space drawn metacal to ~machine precision (it
@@ -13,8 +13,8 @@ import galsim
 import ngmix
 import pytest
 
-from metacal.kmetacal import (
-    KMetacal,
+from metacal.metacal import (
+    Metacal,
     delta_transfer_kspace,
     make_hybrid_filters_kspace,
 )
@@ -71,7 +71,7 @@ def _build(theta):
 
 
 @pytest.mark.parametrize('theta', [None, 30.0, 45.0])
-def test_kmetacal_matches_ngmix(theta):
+def test_metacal_matches_ngmix(theta):
     """
     k-native metacal field EQUALS ngmix's drawn metacal to ~machine precision,
     edge included, for diagonal/rotated wcs and a galaxy AND a noise field
@@ -88,7 +88,7 @@ def test_kmetacal_matches_ngmix(theta):
             types=TYPES,
             fixnoise=False,
         )
-        ki = KMetacal(img, psf_im, wcs, step=STEP, types=TYPES).get_images()
+        ki = Metacal(img, psf_im, wcs, step=STEP, types=TYPES).get_images()
         for t in TYPES:
             a, b = od[t].image, ki[t]
             assert (
@@ -114,8 +114,8 @@ def test_rotation_none_is_noop():
     """
     psf_im, gal_im, obs, wcs = _build(None)
     noise = np.random.RandomState(7).normal(size=(DIM, DIM))
-    a = KMetacal(noise, psf_im, wcs, step=STEP, types=TYPES).get_images()
-    b = KMetacal(
+    a = Metacal(noise, psf_im, wcs, step=STEP, types=TYPES).get_images()
+    b = Metacal(
         noise, psf_im, wcs, step=STEP, types=TYPES, rotation=None
     ).get_images()
     for t in TYPES:
@@ -127,9 +127,9 @@ def test_rotation_requires_angle():
     psf_im, gal_im, obs, wcs = _build(None)
     noise = np.random.RandomState(7).normal(size=(DIM, DIM))
     with pytest.raises(TypeError):
-        KMetacal(noise, psf_im, wcs, step=STEP, types=TYPES, rotation=90.0)
+        Metacal(noise, psf_im, wcs, step=STEP, types=TYPES, rotation=90.0)
     # a galsim.Angle is accepted
-    KMetacal(
+    Metacal(
         noise,
         psf_im,
         wcs,
@@ -150,14 +150,14 @@ def test_sky_rot_conformal_matches_pixel(theta):
     n2 = np.random.RandomState(11).normal(size=(DIM, DIM))
     pix = {
         t: np.rot90(
-            KMetacal(
+            Metacal(
                 np.rot90(n2, 1), psf_im, wcs, step=STEP, types=TYPES, Np=NP
             ).get_images()[t],
             3,
         )
         for t in TYPES
     }
-    sky = KMetacal(
+    sky = Metacal(
         n2,
         psf_im,
         wcs,
@@ -185,12 +185,12 @@ def test_sky_rot_diverges_under_distortion():
     _, NP = delta_transfer_kspace(psf_im, wcs, DIM, STEP, TYPES)
     n2 = np.random.RandomState(11).normal(size=(DIM, DIM))
     pix = np.rot90(
-        KMetacal(
+        Metacal(
             np.rot90(n2, 1), psf_im, wcs, step=STEP, types=TYPES, Np=NP
         ).get_images()['noshear'],
         3,
     )
-    sky = KMetacal(
+    sky = Metacal(
         n2,
         psf_im,
         wcs,

@@ -5,8 +5,8 @@ correction;the validated subset of the mcal_hybrid research package, with the
 winning choices baked in (see README).
 """
 
-from .kmetacal import (
-    KMetacal,
+from .metacal import (
+    Metacal,
     metacal,
     metacal_hybrid,
     delta_transfer_kspace,
@@ -18,7 +18,7 @@ from .deficit import common_harmonic_deficits, jacobian_matrix
 from .wcs import distortion_matrix, galsim_wcs, ngmix_jacobian
 
 __all__ = [
-    'KMetacal',
+    'Metacal',
     'metacal',
     'metacal_hybrid',
     'delta_transfer_kspace',

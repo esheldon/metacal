@@ -9,8 +9,8 @@ derivations and the condor validation live in `mcal_hybrid` (its `CLAUDE.md` and
 
 ## Package layout
 
-- `metacal/kmetacal.py` — the core.
-  - `KMetacal(image, psf_image, wcs, step, types, Np=None, rotation=None)` —
+- `metacal/metacal.py` — the core.
+  - `Metacal(image, psf_image, wcs, step, types, Np=None, rotation=None)` —
     single-image k-space azgauss metacal (world shear frame).  deconv/shear/
     reconv in galsim k-space, one `drawKImage` onto the numpy-fft-matched grid,
     `ifft2`, crop.  `rotation=90*galsim.degrees` (a `galsim.Angle`, not a bare
@@ -19,7 +19,7 @@ derivations and the condor validation live in `mcal_hybrid` (its `CLAUDE.md` and
     exposed ONLY so a set of metacals can share one grid (the filter and the
     noise it cancels must share a frame) — NOT a tuning knob.
   - `delta_transfer_kspace(...)` — the per-type transfer `P_t=|K_t|²` (a delta
-    impulse through KMetacal); `rotation=90*galsim.degrees` gives the rotated
+    impulse through Metacal); `rotation=90*galsim.degrees` gives the rotated
     transfer.
   - `make_hybrid_filters_kspace(pts, pts_rot, npix, scale, types, jmat)` — the
     final-frame deficit filter `H=min(√(D/pts_rot),1)·taper`, `D` from `pts`.
@@ -31,7 +31,7 @@ derivations and the condor validation live in `mcal_hybrid` (its `CLAUDE.md` and
   projection via `jac`), `_trapz_weights`, `jacobian_matrix` (ngmix → 2×2).
   numpy only.
 - `metacal/wcs.py` — `distortion_matrix`, `galsim_wcs`, `ngmix_jacobian`.
-- `tests/` — `test_kmetacal.py` (k-space metacal == ngmix draw to ~machine
+- `tests/` — `test_metacal.py` (k-space metacal == ngmix draw to ~machine
   precision; transfer; sky-rotation conformal-match / distortion-diverge),
   `test_hybrid.py` (`metacal_hybrid` runs, filters capped, correction is the
   spin-2 deficit).

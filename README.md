@@ -35,7 +35,7 @@ mcal = metacal_hybrid(image, psf_image, wcs, noise_image,
 Use the 5 types `noshear/1p/1m/2p/2m` for the full 2×2 response (the trace
 **Rbar** = ½(R₁₁+R₂₂) is the recommended estimator — see "Choices" below).
 
-Lower-level pieces are public too: `KMetacal` (the single-image k-space metacal),
+Lower-level pieces are public too: `Metacal` (the single-image k-space metacal),
 `delta_transfer_kspace` (the per-type noise transfer), and
 `make_hybrid_filters_kspace` (the deficit filter).
 
