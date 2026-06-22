@@ -1,35 +1,22 @@
 # flake8: noqa
-"""
-metacal: the k-space-native metacalibration with the rotated-hybrid noise
-correction;the validated subset of the mcal_hybrid research package, with the
-winning choices baked in (see README).
-"""
-
+from . import metacal
 from .metacal import (
     Metacal,
+    MetacalResult,
     metacal,
-    metacal_hybrid,
+    metacal_obs,
     delta_transfer_kspace,
     make_hybrid_filters_kspace,
     DEFAULT_TYPES,
     LANCZOS,
 )
-from .deficit import common_harmonic_deficits, jacobian_matrix
-from .wcs import distortion_matrix, galsim_wcs, ngmix_jacobian
+from . import deficit
+from .deficit import common_harmonic_deficits
 
-__all__ = [
-    'Metacal',
-    'metacal',
-    'metacal_hybrid',
-    'delta_transfer_kspace',
-    'make_hybrid_filters_kspace',
-    'common_harmonic_deficits',
-    'jacobian_matrix',
-    'distortion_matrix',
-    'galsim_wcs',
-    'ngmix_jacobian',
-    'DEFAULT_TYPES',
-    'LANCZOS',
-]
+from . import wcs
+from .wcs import distortion_matrix, galsim_wcs
+
+from . import azgauss_target_psf
+from .azgauss_target_psf import get_azgauss_target_psf
 
 __version__ = '0.1.0'

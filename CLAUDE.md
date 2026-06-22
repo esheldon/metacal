@@ -23,18 +23,29 @@ derivations and the condor validation live in `mcal_hybrid` (its `CLAUDE.md` and
     transfer.
   - `make_hybrid_filters_kspace(pts, pts_rot, npix, scale, types, jmat)` — the
     final-frame deficit filter `H=min(√(D/pts_rot),1)·taper`, `D` from `pts`.
-  - `metacal(image, psf_image, wcs, ...)` — plain metacal (no correction).
-  - `metacal_hybrid(image, psf_image, wcs, noise_image, ...)` — THE deliverable:
-    metacal + the rotated-hybrid correction on one shared grid, all winning
-    choices baked in.
+  - `metacal(image, psf_image, wcs, noise_image=None, ...)` — THE deliverable.
+    Returns a `MetacalResult`.  `noise_image=None` is plain metacal; pass a
+    `noise_image` and it adds the rotated-hybrid correction on one shared grid,
+    all winning choices baked in.
+  - `MetacalResult` — dict-like (keyed by metacal type → sheared image; also
+    `set()`/iterate/`keys`/`items`) plus `.psf_image` (the round reconv target)
+    and `.noise_var_factor` (see "Output noise level" below).
+  - `metacal_obs(obs, ...)` — ngmix `Observation` wrapper: metacals `obs.image`
+    (and `obs.noise` if present), returns a dict type→`Observation` with the
+    round target psf and the weight map divided by `noise_var_factor`.
 - `metacal/deficit.py` — `common_harmonic_deficits` (trapz quadrature, sky-angle
-  projection via `jac`), `_trapz_weights`, `jacobian_matrix` (ngmix → 2×2).
+  projection via `jac`), `_trapz_weights`,
   numpy only.
-- `metacal/wcs.py` — `distortion_matrix`, `galsim_wcs`, `ngmix_jacobian`.
+- `metacal/azgauss_target_psf.py` — `get_azgauss_target_psf`, the round gaussian
+  reconvolution target pinned below the psf k-profile at the threshold crossing
+  (azimuthally-averaged, noise-immune above S/N~100).  Local now (was ngmix's).
+- `metacal/wcs.py` — `distortion_matrix` (`theta` a `galsim.Angle`),
+  `galsim_wcs`, `ngmix_jacobian`.
 - `tests/` — `test_metacal.py` (k-space metacal == ngmix draw to ~machine
   precision; transfer; sky-rotation conformal-match / distortion-diverge),
-  `test_hybrid.py` (`metacal_hybrid` runs, filters capped, correction is the
-  spin-2 deficit).
+  `test_noise_correction.py` (`metacal` with a `noise_image` runs, filters
+  capped, correction is the spin-2 deficit, `noise_var_factor` predicts the
+  measured variance ratio).
 
 ## The baked-in choices (were options in mcal_hybrid)
 
@@ -57,6 +68,18 @@ contaminations (the cos4φ leak and the intrinsic finite-shear g² response
 anisotropy).  The metacal package produces the sheared images; the response /
 Rbar is formed downstream by the shape estimator.
 
+## Output noise level (`noise_var_factor`)
+
+The correction adds anisotropy-filling noise, so the corrected per-pixel noise
+variance rises above plain metacal — minimally for a round psf, more as the psf
+gets elliptical.  `MetacalResult.noise_var_factor` is that increase **relative
+to plain metacal**: a single number (the deficit lands every type at a common
+noise level, and only the m=0 part sets the total variance), anchored on
+`noshear`, `1 + mean(H²·pts_rot)/mean(pts)`.  It is ~1.04 for a round psf and
+rises toward 2.0 (the old fixnoise, √2-in-noise) as the psf becomes elliptical;
+exactly 1.0 when no `noise_image` is given.  Downstream, multiply the noise
+variance (divide the weight map) by it — `metacal_obs` does this automatically.
+
 ## What was deliberately LEFT OUT (dead ends / out of scope)
 
 - the real-space correction (`mcal_hybrid/correction.py`: `_delta_transfer` rfft,
@@ -71,8 +94,10 @@ Rbar is formed downstream by the shape estimator.
 
 ## Dependencies
 
-numpy, galsim, and **ngmix on the `mcal-gauss-stability` branch** (the `azgauss`
-target psf).  `pip install -e .` or `PYTHONPATH=.`.
+numpy and galsim.  ngmix is needed only for the tests and for `metacal_obs`
+(the `Observation` wrapper); the azgauss reconvolution target is local
+(`azgauss_target_psf.py`), so no special ngmix branch is required.
+`pip install -e .` or `PYTHONPATH=.`.
 
 ## Workflow
 

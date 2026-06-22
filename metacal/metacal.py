@@ -1,13 +1,11 @@
 """
 Metacalibration
-
-A k-space-native metacalibration with the rotated-hybrid noise correction.
 """
 
 import numpy as np
 import galsim
 
-from ngmix.metacal.azgauss_target_psf import get_azgauss_target_psf
+from .azgauss_target_psf import get_azgauss_target_psf
 
 from .deficit import common_harmonic_deficits
 from .wcs import galsim_wcs
@@ -16,14 +14,125 @@ LANCZOS = 'lanczos15'
 DEFAULT_TYPES = ('noshear', '1p', '1m')
 
 
+def metacal(
+    image,
+    psf_image,
+    wcs,
+    noise_image=None,
+    step=0.01,
+    types=DEFAULT_TYPES,
+):
+    """
+    metacal one image
+
+    Parameters
+    ----------
+    image: array
+        the image to metacal
+    psf_image: array
+        the psf image (pixel-convolved, as drawn); deconvolved from the image
+        and used to derive the round gaussian reconvolution target
+    wcs: galsim local/Jacobian wcs, or a 2x2 array
+        the pixel->sky wcs.  May be given as the 2x2
+        pixel->sky matrix (col, row order) instead of a galsim wcs
+    noise_image: array, optional
+        A noise field used to correct for the anisotropic noise created by the
+        metacal process.
+    step: float
+        metacal shear step
+    types: sequence of str
+        any of 'noshear', '1p', '1m', '2p', '2m'
+
+    Returns
+    -------
+    MetacalResult
+        Keyed by type to the sheared images (``res['noshear']``) and carries
+        ``.psf_image`` (the reconvolution psf) and ``.noise_var_factor`` (the
+        per-pixel noise-variance increase from the correction, 1.0 when no
+        ``noise_image`` is given).
+    """
+
+    if noise_image is None:
+        mcal = Metacal(image, psf_image, wcs, step=step, types=types)
+        return MetacalResult(
+            images=mcal.get_images(),
+            psf_image=mcal.target_psf_image(),
+            noise_var_factor=1.0,
+        )
+    else:
+        return _metacal_with_noise_correction(
+            image,
+            psf_image,
+            wcs,
+            noise_image=noise_image,
+            step=step,
+            types=types,
+        )
+
+
+def metacal_obs(
+    obs,
+    step=0.01,
+    types=DEFAULT_TYPES,
+):
+    """
+    Metacal an ngmix.Observation.  If a .noise is present, the
+    noise corrections are applied.
+
+    Parameters
+    ----------
+    obs: ngmix.Observation
+        The ngmix Observation, with image, psf etc.
+    step: float
+        metacal shear step
+    types: sequence of str
+        any of 'noshear', '1p', '1m', '2p', '2m'
+
+    Notes
+    -----
+    ngmix is not actually required; the input "obs" can duck
+    type the needed attributes and methods.
+    """
+
+    if not obs.has_psf():
+        raise ValueError('observation must have a .psf')
+
+    if obs.has_noise():
+        noise_image = obs.noise
+    else:
+        noise_image = None
+
+    wcs = obs.jacobian.get_galsim_wcs()
+
+    res = metacal(
+        image=obs.image,
+        psf_image=obs.psf.image,
+        wcs=wcs,
+        noise_image=noise_image,
+        step=step,
+        types=types,
+    )
+
+    # pack each back into a ngmix.Observation, rescaling the weight map for the
+    # noise-variance increase from the correction (a no-op when
+    # noise_var_factor is 1, i.e. no correction was applied)
+    odict = {}
+    for key, image in res.items():
+
+        oobs = obs.copy()
+        oobs.image = image
+        oobs.psf.image = res.psf_image
+        if res.noise_var_factor != 1.0:
+            oobs.weight = oobs.weight / res.noise_var_factor
+
+        odict[key] = oobs
+
+    return odict
+
+
 class Metacal:
     """
-    k-space-native azgauss metacal of a single image (world shear frame).
-
-    Builds the persistent galsim GSObjects once (interpolated image,
-    deconvolved galaxy, dilated round-gaussian target psf) and exposes the
-    per-type metacal'd field as the matched-grid k-array (``get_khats``) or the
-    real image (``get_images``).
+    Metacal a single image.
 
     Parameters
     ----------
@@ -42,14 +151,13 @@ class Metacal:
         any of 'noshear', '1p', '1m', '2p', '2m'
     Np: int, optional
         the padded draw-grid size; default None computes galsim's own drawFFT
-        size.  Pass an explicit Np ONLY to force one shared grid across a set
-        of Metacals (the filter and the noise it cancels must share a frame)
-        -- not a tuning knob.
+        size.  Pass an explicit Np only to force one shared grid across a set
+        of Metacals (the filter and the noise it cancels must share a frame).
+        This is not a tuning knob.
     rotation: galsim.Angle or None
         sky-frame rotation of the input field before metacal (the metacal'd
-        field is rotated back by -rotation); ``90 * galsim.degrees`` builds the
-        fixnoise correction field, None (default) is the identity
-        (galaxy/science path)
+        field is rotated back by -rotation). Setting ``rotation=90 *
+        galsim.degrees`` builds the noise correction field.
     x_interpolant: str
         the InterpolatedImage interpolant (default lanczos15, the metacal
         kernel)
@@ -97,8 +205,8 @@ class Metacal:
 
         # the round gaussian reconvolution target, dilated by 1 + 2*step; the
         # SAME target for every type (only the galaxy is sheared)
-        gauss = get_azgauss_target_psf(psf_int, flux=self.psf_flux)
-        self.target_psf = gauss.dilate(1.0 + 2.0 * self.step)
+        target_psf = get_azgauss_target_psf(psf_int, flux=self.psf_flux)
+        self.target_psf = target_psf.dilate(1.0 + 2.0 * self.step)
 
         # the padded draw grid (galsim's own drawFFT size unless shared via Np)
         self.Np = self._galsim_kpad_size() if Np is None else int(Np)
@@ -184,7 +292,7 @@ class Metacal:
         """
         dict type -> real image of ifft2(khat_t * filters[t]), cropped to N;
         ``filters`` are Np x Np k-space filters (the hybrid H_t).  The filter
-        is applied in k on the padded grid -- no second fft -- so the
+        is applied in k on the padded grid; no second fft; so the
         de-aliased correction field stays in the same frame as the transfer
         that built it.
         """
@@ -200,6 +308,151 @@ class Metacal:
         return self.target_psf.drawImage(
             nx=self.N, ny=self.N, wcs=self.wcs, method='no_pixel'
         ).array
+
+
+class MetacalResult:
+    """
+    The result of a :func:`metacal` run.
+
+    Keyed by metacal type to the sheared images (``res['noshear']``); and is
+    iterable / supports ``keys``/``values``/``items``/``in``/``len`` like a
+    dict -- while also exposing the reconvolution psf image and the predicted
+    noise-variance increase.
+
+    Attributes
+    ----------
+    images: dict
+        the sheared images keyed by metacal type
+    psf_image: array
+        the round reconvolution (target) psf image, common to all types
+    noise_var_factor: float
+        the factor by which the per-pixel noise variance increased due to the
+        rotated-hybrid noise correction, relative to plain (uncorrected)
+        metacal.  1.0 when no noise correction was applied; ~1.04 for a round
+        psf, rising toward 2.0 (the full fixnoise level) as the psf becomes
+        more elliptical.  The corrected noise lands at a common level across
+        all types, so this is a single number.  Downstream, multiply the noise
+        variance (or divide the weight map) by this factor.
+    """
+
+    def __init__(self, images, psf_image, noise_var_factor):
+        self.images = images
+        self.psf_image = psf_image
+        self.noise_var_factor = noise_var_factor
+
+    def __getitem__(self, key):
+        return self.images[key]
+
+    def __iter__(self):
+        return iter(self.images)
+
+    def __len__(self):
+        return len(self.images)
+
+    def __contains__(self, key):
+        return key in self.images
+
+    def keys(self):
+        return self.images.keys()
+
+    def values(self):
+        return self.images.values()
+
+    def items(self):
+        return self.images.items()
+
+    def __repr__(self):
+        return (
+            f'MetacalResult(types={list(self.images)}, '
+            f'noise_var_factor={self.noise_var_factor:.4f})'
+        )
+
+
+def _metacal_with_noise_correction(
+    image,
+    psf_image,
+    wcs,
+    noise_image=None,
+    step=0.01,
+    types=DEFAULT_TYPES,
+
+):
+    if image.shape != noise_image.shape:
+        raise ValueError(
+            f'noise shape mistmatch, {noise_image.shape} != {image.shape}'
+        )
+
+    dim = image.shape[0]
+    wcs, jmat = _wcs_and_matrix(wcs)
+
+    # one shared padded grid for the transfer, the galaxy and the noise
+    pts, npix = delta_transfer_kspace(psf_image, wcs, dim, step, types)
+    pts_rot, _ = delta_transfer_kspace(
+        psf_image,
+        wcs,
+        dim,
+        step,
+        types,
+        Np=npix,
+        rotation=90 * galsim.degrees,
+    )
+
+    scale, _, _, _ = wcs.getDecomposition()
+    hfilt = make_hybrid_filters_kspace(
+        pts, pts_rot, npix, scale, types, jmat=jmat
+    )
+
+    mcal = Metacal(image, psf_image, wcs, step=step, types=types, Np=npix)
+    mcal_images = mcal.get_images()
+
+    # the sky-rotated correction field, metacal'd, filtered to the deficit,
+    # and rotated back.  already in the final frame
+    mcal_noise = Metacal(
+        noise_image,
+        psf_image,
+        wcs,
+        step=step,
+        types=types,
+        Np=npix,
+        rotation=90 * galsim.degrees,
+    )
+    mcal_noise_images = mcal_noise.get_filtered_images(hfilt)
+
+    odict = {
+        t: mcal_images[t] + mcal_noise_images[t]
+        for t in types
+    }
+    return MetacalResult(
+        images=odict,
+        psf_image=mcal.target_psf_image(),
+        noise_var_factor=_predict_noise_var_factor(pts, pts_rot, hfilt, types),
+    )
+
+
+def _predict_noise_var_factor(pts, pts_rot, hfilt, types):
+    """
+    the factor by which the per-pixel noise variance increases due to the
+    rotated-hybrid correction, relative to plain (uncorrected) metacal.
+
+    For a white input field the metacal'd image-noise variance is mean(pts)
+    and the added correction variance is mean(H^2 * pts_rot) (both per unit
+    input variance, by Parseval on the padded grid; the per-pixel variance of
+    a filtered white field is the mean of the squared filter).  The corrected
+    variance lands at a COMMON level across types: the deficit fills every
+    type's m=0 (azimuthal-mean) power to a common level, and only m=0
+    contributes to the total variance (the m=2/m=6 fills integrate to zero over
+    each annulus).  So one number suffices; it is anchored on the noshear
+    baseline (the science type):
+
+        noise_var_factor = 1 + mean(H_ns^2 * pts_rot_ns) / mean(pts_ns)
+
+    ~1.04 for a round psf, rising toward 2.0 (full fixnoise) as the psf becomes
+    more elliptical.
+    """
+    ref = 'noshear' if 'noshear' in types else list(types)[0]
+    v_plain = pts[ref].mean()
+    v_added = (hfilt[ref] ** 2 * pts_rot[ref]).mean()
+    return 1.0 + v_added / v_plain
 
 
 def delta_transfer_kspace(
@@ -230,13 +483,13 @@ def make_hybrid_filters_kspace(
 ):
     """
     the per-type hybrid filters H_t (on the padded Np grid), in the FINAL
-    (image-metacal) frame -- to apply to the sky-rotated, metacal'd correction
+    (image-metacal) frame; to apply to the sky-rotated, metacal'd correction
     noise (``Metacal(rotation=90*galsim.degrees).get_filtered_images``).
 
     ``pts`` is the un-rotated image-metacal transfer (the noise to isotropize,
     in its own frame); ``pts_rot`` is the rotated-back corr-field transfer
     (|T_M(R90 k)|^2).  The common-level m=2/m=6 deficit D is built from ``pts``
-    (sky-projected, trapz quadrature -- ``common_harmonic_deficits``) and
+    (sky-projected, trapz quadrature; ``common_harmonic_deficits``) and
     divided by ``pts_rot``:
 
         H_t = min(sqrt(D_t / pts_rot_t), 1) * taper,
@@ -273,26 +526,10 @@ def make_hybrid_filters_kspace(
     return out
 
 
-def _wcs_and_matrix(wcs):
-    """
-    resolve a wcs given as EITHER a galsim local/Jacobian wcs OR a 2x2
-    pixel->sky jacobian matrix (col, row order, M = [[dudx, dudy], [dvdx,
-    dvdy]]), and return the pair ``(galsim_wcs, matrix)`` -- the galsim wcs the
-    metacal draws with and the matrix used for the pixel scale and the
-    sky-angle deficit projection.  A galsim wcs is returned as-is with its
-    jacobian extracted; a matrix is wrapped in a ``galsim.JacobianWCS``.
-    """
-    if isinstance(wcs, galsim.BaseWCS):
-        jac = wcs.jacobian()
-        return wcs, np.array([[jac.dudx, jac.dudy], [jac.dvdx, jac.dvdy]])
-    mat = np.asarray(wcs, dtype=float)
-    return galsim_wcs(mat), mat
-
-
 def _shear_kwargs(t, step):
     """
     galsim .shear() kwargs for a metacal type (None for noshear).  1p/1m shear
-    g1=+/-step, 2p/2m shear g2=+/-step -- 2p/2m give the g2 column of the full
+    g1=+/-step, 2p/2m shear g2=+/-step ; 2p/2m give the g2 column of the full
     2x2 response (needed for the trace response Rbar; only 1p/1m for the R11
     path).
     """
@@ -305,115 +542,17 @@ def _shear_kwargs(t, step):
     }[t]
 
 
-def metacal(image, psf_image, wcs, step=0.01, types=DEFAULT_TYPES):
+def _wcs_and_matrix(wcs):
     """
-    metacal one image
-
-    Parameters
-    ----------
-    image: array
-        the image to metacal
-    psf_image: array
-        the psf image (pixel-convolved, as drawn); deconvolved from the image
-        and used to derive the round gaussian reconvolution target
-    wcs: galsim local/Jacobian wcs, or a 2x2 array
-        the pixel->sky wcs.  May be given as the 2x2
-        pixel->sky matrix (col, row order) instead of a galsim wcs
-    step: float
-        metacal shear step
-    types: sequence of str
-        any of 'noshear', '1p', '1m', '2p', '2m'
-    Np: int, optional
-        the padded draw-grid size; default None computes galsim's own drawFFT
-        size.  Pass an explicit Np ONLY to force one shared grid across a set
-        of Metacals (the filter and the noise it cancels must share a frame).
-        This is not a tuning knob.
-    rotation: galsim.Angle or None
-        sky-frame rotation of the input field before metacal (the metacal'd
-        field is rotated back by -rotation); ``90 * galsim.degrees`` builds the
-        fixnoise correction field, None (default) is the identity
-        (galaxy/science path)
-    x_interpolant: str
-        the InterpolatedImage interpolant (default lanczos15, the metacal
-        kernel)
+    resolve a wcs given as EITHER a galsim local/Jacobian wcs OR a 2x2
+    pixel->sky jacobian matrix (col, row order, M = [[dudx, dudy], [dvdx,
+    dvdy]]), and return the pair ``(galsim_wcs, matrix)`` ; the galsim wcs the
+    metacal draws with and the matrix used for the pixel scale and the
+    sky-angle deficit projection.  A galsim wcs is returned as-is with its
+    jacobian extracted; a matrix is wrapped in a ``galsim.JacobianWCS``.
     """
-
-    mcal = Metacal(image, psf_image, wcs, step=step, types=types)
-    return mcal.get_images()
-
-
-def metacal_hybrid(
-    image,
-    psf_image,
-    wcs,
-    noise_image,
-    step=0.01,
-    types=DEFAULT_TYPES,
-):
-    """
-    metacal with noise correction.
-
-    Only the m=2/m=6 anisotropy needs cancelling, so the hybrid filters that a
-    sky-rotated, metacal'd noise field down to just the anisotropic deficit
-    before adding it
-
-    Everything is on ONE shared padded k-grid (the galaxy, the sky-rotated
-    noise, and the transfers)
-
-    Parameters
-    ----------
-    image: array
-        the (noisy) science image to metacal
-    psf_image: array
-        the psf image
-    wcs: galsim local/Jacobian wcs, or a 2x2 array
-        the pixel->sky wcs (diagonal or distorted); may be the 2x2 pixel->sky
-        matrix (col, row order) instead of a galsim wcs
-    noise_image: array
-        the correction noise field -- an independent realization matching the
-        image's noise (its correlations / coverage); rotated, metacal'd,
-        filtered and added to restore the noise symmetry
-    step: float
-        metacal shear step
-    types: sequence of str
-        metacal types (default noshear/1p/1m; add 2p/2m for the full 2x2
-        response)
-
-    Returns
-    -------
-    dict type -> (N, N) corrected metacal image (the metacal'd science image
-    plus the filtered, sky-rotated correction field)
-    """
-    dim = image.shape[0]
-    wcs, jmat = _wcs_and_matrix(wcs)
-    scale = float(np.sqrt(abs(np.linalg.det(jmat))))
-
-    # one shared padded grid for the transfer, the galaxy and the noise
-    pts, npix = delta_transfer_kspace(psf_image, wcs, dim, step, types)
-    pts_rot, _ = delta_transfer_kspace(
-        psf_image, wcs, dim, step, types, Np=npix, rotation=90 * galsim.degrees
-    )
-    hfilt = make_hybrid_filters_kspace(
-        pts, pts_rot, npix, scale, types, jmat=jmat
-    )
-
-    mcal = Metacal(image, psf_image, wcs, step=step, types=types, Np=npix)
-    mcal_images = mcal.get_images()
-
-    # the sky-rotated correction field, metacal'd, filtered to the deficit, and
-    # rotated back -- already in the final frame
-    mcal_noise = Metacal(
-        noise_image,
-        psf_image,
-        wcs,
-        step=step,
-        types=types,
-        Np=npix,
-        rotation=90 * galsim.degrees,
-    )
-    mcal_noise_images = mcal_noise.get_filtered_images(hfilt)
-
-    return {
-        t: mcal_images[t] + mcal_noise_images[t]
-        for t in types
-    }
+    if isinstance(wcs, galsim.BaseWCS):
+        jac = wcs.jacobian()
+        return wcs, np.array([[jac.dudx, jac.dudy], [jac.dvdx, jac.dvdy]])
+    mat = np.asarray(wcs, dtype=float)
+    return galsim_wcs(mat), mat

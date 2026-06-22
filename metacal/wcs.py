@@ -1,32 +1,42 @@
 """
 local WCS helpers.
-
-A uniform (linear) WCS is the 2x2 jacobian M mapping a pixel offset
-(col, row) = (x, y) to a world offset (u, v) in arcsec, stored in (x, y) order
-M = [[dudx, dudy], [dvdx, dvdy]].  A plain diagonal scale is M = scale * I; a
-distorted system adds a rotation R(theta) and an area-preserving shear
-S(g1, g2):
-
-    M = scale * R(theta) @ S(g1, g2),
-
-so |det M| = scale^2 (the pixel area, flux and matched-filter S/N are
-unchanged).
-
-galsim and ngmix both express the jacobian as u = dudx*x + dudy*y with x =
-column, y = row, so galsim ``dudx`` maps to ngmix ``dudcol`` and ``dudy`` to
-``dudrow``.
 """
 
 
-def distortion_matrix(scale, theta_deg=0.0, g1=0.0, g2=0.0):
+def distortion_matrix(scale, theta=None, g1=0.0, g2=0.0):
     """
-    the 2x2 pixel->sky jacobian M = scale * R(theta_deg) @ S(g1, g2), in
-    (x, y) = (col, row) order.  theta_deg = g1 = g2 = 0 gives scale * I.
+    Create a distortion matrix from scale, angle, shear
+
+    Parameters
+    ----------
+    scale: float
+        The pixel scale, e.g. 0.2 arcsec/pixel
+    theta: galsim.Angle or None
+        The rotation as a galsim.Angle, e.g. 30 * galsim.degrees; None
+        (default) is no rotation
+    g1: float
+        Shear g1
+    g2: float
+        Shear g2
+
+    Returns
+    -------
+    matrix: array
+        Matrix of shape [2, 3]
     """
     import numpy as np
+    import galsim
 
-    th = np.deg2rad(theta_deg)
-    rot = np.array([[np.cos(th), -np.sin(th)], [np.sin(th), np.cos(th)]])
+    if theta is not None and not isinstance(theta, galsim.Angle):
+        raise TypeError(
+            'theta must be a galsim.Angle (e.g. 30 * galsim.degrees) or '
+            f'None, got {type(theta).__name__}'
+        )
+    th = 0.0 if theta is None else theta / galsim.radians
+    rot = np.array(
+        [[np.cos(th), -np.sin(th)],
+         [np.sin(th), np.cos(th)]]
+    )
     norm = 1.0 / np.sqrt(1.0 - g1**2 - g2**2)
     shear = norm * np.array([[1.0 + g1, g2], [g2, 1.0 - g1]])
     return scale * (rot @ shear)
@@ -34,7 +44,16 @@ def distortion_matrix(scale, theta_deg=0.0, g1=0.0, g2=0.0):
 
 def galsim_wcs(jacmat):
     """
-    a galsim.JacobianWCS for the 2x2 matrix jacmat (x, y order)
+    Convert a jacobian matrix to a galsim.JacobianWCS
+
+    Parameters
+    ----------
+    jacmat: array
+        [2, 2] array
+
+    Returns
+    -------
+    galsim.JacobianWCS
     """
     import galsim
 
@@ -48,7 +67,20 @@ def galsim_wcs(jacmat):
 
 def ngmix_jacobian(row, col, jacmat):
     """
-    an ngmix.Jacobian centered at (row, col) for the 2x2 matrix jacmat
+    Get an ngmix.Jacobian centered at (row, col) for the 2x2 matrix jacmat
+
+    Parameters
+    ----------
+    row: float
+        Row center
+    col: float
+        Col center
+    jacmat: array
+        [2, 2] array
+
+    Returns
+    -------
+    ngmix.Jacobian
     """
     import ngmix
 
