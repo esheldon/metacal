@@ -482,7 +482,7 @@ def make_hybrid_filters_kspace(
     pts, pts_rot, npix, scale, types, ktol=1e-4, jmat=None
 ):
     """
-    the per-type hybrid filters H_t (on the padded Np grid), in the FINAL
+    the per-type hybrid filters H_t (on the padded Np grid), in the final
     (image-metacal) frame; to apply to the sky-rotated, metacal'd correction
     noise (``Metacal(rotation=90*galsim.degrees).get_filtered_images``).
 
