@@ -181,6 +181,7 @@ class Metacal:
                 f'None, got {type(rotation).__name__}'
             )
         self.N = image.shape[0]
+        self.psf_image = psf_image
         self.wcs, self.wcs_matrix = _wcs_and_matrix(wcs)
         self.step = step
         self.types = list(types)
@@ -305,8 +306,10 @@ class Metacal:
     def target_psf_image(self):
         """the round dilated-gaussian reconvolution psf image (for the fit);
         drawn the standard way (it is smooth, no aliasing concern)"""
+
+        ny, nx = self.psf_image.shape
         return self.target_psf.drawImage(
-            nx=self.N, ny=self.N, wcs=self.wcs, method='no_pixel'
+            nx=nx, ny=ny, wcs=self.wcs, method='no_pixel'
         ).array
 
 

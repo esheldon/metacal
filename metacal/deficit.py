@@ -67,9 +67,9 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
     kx = 2 * np.pi * np.fft.fftfreq(dim, d=scale)
     kxg, kyg = np.meshgrid(kx, kx)
     if jac is not None:
-        # map the pixel-frame wavenumbers to the SKY frame: a pixel mode
+        # map the pixel-frame wavenumbers to the sky frame: a pixel mode
         # exp(i k.x) with sky coords u = M x has sky wavevector M^{-T} k;
-        # normalizing out the pixel scale (only the wcs SHAPE matters) gives
+        # normalizing out the pixel scale (only the wcs shape matters) gives
         # k_sky = (M/scale)^{-T} k_pix = scale * M^{-T} k_pix.
         minvt = scale * np.linalg.inv(np.asarray(jac, dtype=float)).T
         kxg, kyg = (
@@ -104,7 +104,7 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
                 az_avg(pt * np.sin(m * theta)),
             )
     # common envelope over types (elementwise max per annulus): we can only ADD
-    # power, so fill everyone UP to the tallest mean / m-mode amplitude
+    # power, so fill everyone up to the tallest mean / m-mode amplitude
     common_mean = np.maximum.reduce([means[t] for t in pts])
     common_amp = {
         m: np.maximum.reduce([2 * np.hypot(*coeffs[t][m]) for t in pts])
