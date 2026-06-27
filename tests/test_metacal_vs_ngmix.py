@@ -85,7 +85,7 @@ def test_metacal_matches_ngmix(theta):
             fixnoise=False,
         )
 
-        res = metacal_obs(mkobs, types=TYPES)
+        res = metacal_obs(mkobs, rng=rng, types=TYPES)
 
         for t in TYPES:
             ngmix_image = ngmix_odict[t].image

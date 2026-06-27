@@ -72,6 +72,7 @@ def metacal(
 
 def metacal_obs(
     obs,
+    rng,
     step=0.01,
     types=DEFAULT_TYPES,
 ):
@@ -83,6 +84,8 @@ def metacal_obs(
     ----------
     obs: ngmix.Observation
         The ngmix Observation, with image, psf etc.
+    rng: np.random.RandomState
+        For adding a little noise to the PSF image
     step: float
         metacal shear step
     types: sequence of str
@@ -121,13 +124,31 @@ def metacal_obs(
 
         oobs = obs.copy()
         oobs.image = image
-        oobs.psf.image = res.psf_image
+
         if res.noise_var_factor != 1.0:
             oobs.weight = oobs.weight / res.noise_var_factor
+
+        _update_psf(res=res, psf_obs=oobs.psf, rng=rng)
 
         odict[key] = oobs
 
     return odict
+
+
+def _update_psf(res, psf_obs, rng):
+    psf_image = res.psf_image.copy()
+
+    psf_noise = psf_image.max() / 50000.0
+    psf_image += rng.normal(
+        size=psf_image.shape,
+        scale=psf_noise,
+    )
+    psf_weight = psf_image * 0 + 1.0 / psf_noise ** 2
+
+    # pixels will be updated after exit from context
+    with psf_obs.writeable():
+        psf_obs.image[:, :] = psf_image
+        psf_obs.weight[:, :] = psf_weight
 
 
 class Metacal:
