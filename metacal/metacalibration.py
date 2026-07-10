@@ -5,8 +5,6 @@ Metacalibration
 import numpy as np
 import galsim
 
-from .azgauss_target_psf import get_azgauss_target_psf
-
 from .deficit import common_harmonic_deficits
 from .wcs import galsim_wcs
 from .metacal_result import MetacalResult
@@ -18,6 +16,7 @@ def metacal_image(
     psf_image,
     noise_image,
     wcs,
+    target_psf,
     step=0.01,
     types=DEFAULT_TYPES,
 ):
@@ -30,12 +29,16 @@ def metacal_image(
         the image to metacal
     psf_image: array
         the psf image
-    wcs: galsim WCS
-        May also be given as the 2x2 pixel->sky matrix (col, row order) instead
-        of a galsim wcs
     noise_image: array
         A noise field for noise anisotropy correction.  Send None to not apply
         a correction.  The noise field should match the noise in image.
+    wcs: galsim WCS
+        May also be given as the 2x2 pixel->sky matrix (col, row order) instead
+        of a galsim wcs
+    target_psf: A callable that returns a galsim object
+        This should be callable with target_psf(psf=psf, flux=flux),
+        with psf a galsim object such as galsim.InterpolatedImage.  For
+        an example see metacal.AZGauss
     step: float
         metacal shear step
     types: sequence of str
@@ -54,7 +57,14 @@ def metacal_image(
     """
 
     if noise_image is None:
-        mcal = Metacal(image, psf_image, wcs, step=step, types=types)
+        mcal = Metacal(
+            image=image,
+            psf_image=psf_image,
+            wcs=wcs,
+            target_psf=target_psf,
+            step=step,
+            types=types,
+        )
         return MetacalResult(
             images=mcal.get_images(),
             psf_image=mcal.target_psf_image(),
@@ -65,6 +75,7 @@ def metacal_image(
             image,
             psf_image,
             wcs,
+            target_psf=target_psf,
             noise_image=noise_image,
             step=step,
             types=types,
@@ -89,6 +100,10 @@ class Metacal:
         the pixel->sky wcs; a diagonal scale or a distorted (rotated/sheared)
         jacobian, handled exactly via profileToImage.  May be given as the 2x2
         pixel->sky matrix (col, row order) instead of a galsim wcs
+    target_psf: A callable that returns a galsim object
+        This should be callable with target_psf(psf=psf, flux=flux),
+        with psf a galsim object such as galsim.InterpolatedImage.  For
+        an example see metacal.AZGauss
     step: float
         metacal shear step
     types: sequence of str
@@ -112,6 +127,7 @@ class Metacal:
         image,
         psf_image,
         wcs,
+        target_psf,
         step=0.01,
         types=DEFAULT_TYPES,
         Np=None,
@@ -150,8 +166,8 @@ class Metacal:
 
         # the round gaussian reconvolution target, dilated by 1 + 2*step; the
         # same target for every type (only the galaxy is sheared)
-        target_psf = get_azgauss_target_psf(psf_int, flux=self.psf_flux)
-        self.target_psf = target_psf.dilate(1.0 + 2.0 * self.step)
+        self.target_psf = target_psf(psf_int, flux=self.psf_flux)
+        self.target_psf = self.target_psf.dilate(1.0 + 2.0 * self.step)
 
         # the padded draw grid (galsim's own drawFFT size unless shared via Np)
         self.Np = self._galsim_kpad_size() if Np is None else int(Np)
@@ -261,6 +277,7 @@ def _metacal_with_noise_correction(
     image,
     psf_image,
     wcs,
+    target_psf,
     noise_image=None,
     step=0.01,
     types=DEFAULT_TYPES,
@@ -276,18 +293,20 @@ def _metacal_with_noise_correction(
 
     # one shared padded grid for the transfer, the galaxy and the noise
     pts, npix = delta_transfer_kspace(
-        psf_image,
-        wcs,
-        dim,
-        step,
-        types,
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=target_psf,
+        dim=dim,
+        step=step,
+        types=types,
     )
     pts_rot, _ = delta_transfer_kspace(
-        psf_image,
-        wcs,
-        dim,
-        step,
-        types,
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=target_psf,
+        dim=dim,
+        step=step,
+        types=types,
         Np=npix,
         rotation=90 * galsim.degrees,
     )
@@ -297,7 +316,15 @@ def _metacal_with_noise_correction(
         pts, pts_rot, npix, scale, types, jmat=jmat
     )
 
-    mcal = Metacal(image, psf_image, wcs, step=step, types=types, Np=npix)
+    mcal = Metacal(
+        image=image,
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=target_psf,
+        step=step,
+        types=types,
+        Np=npix,
+    )
     mcal_images = mcal.get_images()
 
     # the sky-rotated correction field, metacal'd, filtered,
@@ -306,6 +333,7 @@ def _metacal_with_noise_correction(
         noise_image,
         psf_image,
         wcs,
+        target_psf=target_psf,
         step=step,
         types=types,
         Np=npix,
@@ -351,7 +379,7 @@ def _predict_noise_var_factor(pts, pts_rot, hfilt, types):
 
 
 def delta_transfer_kspace(
-    psf_image, wcs, dim, step, types, Np=None, rotation=None
+    psf_image, wcs, target_psf, dim, step, types, Np=None, rotation=None
 ):
     """
     the per-type metacal noise transfer P_t = |K_t|^2 on the padded Np x Np
@@ -367,7 +395,14 @@ def delta_transfer_kspace(
     delta = np.zeros((dim, dim))
     delta[dim // 2, dim // 2] = 1.0
     km = Metacal(
-        delta, psf_image, wcs, step=step, types=types, Np=Np, rotation=rotation
+        image=delta,
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=target_psf,
+        step=step,
+        types=types,
+        Np=Np,
+        rotation=rotation
     )
     khats = km.get_khats()
     return {t: np.abs(khats[t]) ** 2 for t in types}, km.Np

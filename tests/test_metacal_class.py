@@ -6,6 +6,7 @@ import numpy as np
 import galsim
 import pytest
 
+from metacal import AZGauss
 from metacal.metacalibration import (
     Metacal,
     delta_transfer_kspace,
@@ -33,7 +34,7 @@ def _build(theta):
         dkw = {'wcs': wcs}
 
     psf = galsim.Moffat(beta=2.5, fwhm=0.9)
-    psf_im = psf.drawImage(nx=DIM, ny=DIM, **dkw).array
+    psf_image = psf.drawImage(nx=DIM, ny=DIM, **dkw).array
     gal_im = (
         galsim.Convolve(
             galsim.Exponential(half_light_radius=0.5).shear(g1=0.02), psf
@@ -42,15 +43,22 @@ def _build(theta):
         .array
     )
 
-    return psf_im, gal_im, wcs
+    return psf_image, gal_im, wcs
 
 
 @pytest.mark.parametrize('theta', [None, 45.0])
 def test_delta_transfer_padded(theta):
     """the transfer is on galsim's padded draw grid Np (>= the stamp), finite
     and non-negative"""
-    psf_im, gal_im, wcs = _build(theta)
-    pts, Np = delta_transfer_kspace(psf_im, wcs, DIM, STEP, TYPES)
+    psf_image, gal_im, wcs = _build(theta)
+    pts, Np = delta_transfer_kspace(
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=AZGauss(),
+        dim=DIM,
+        step=STEP,
+        types=TYPES,
+    )
     assert Np >= DIM and Np % 2 == 0
     for t in TYPES:
         assert pts[t].shape == (Np, Np)
@@ -61,11 +69,24 @@ def test_rotation_none_is_noop():
     """
     rotation=None (the default) is the identity: byte-for-byte the default
     """
-    psf_im, gal_im, wcs = _build(None)
+    psf_image, gal_im, wcs = _build(None)
     noise = np.random.RandomState(7).normal(size=(DIM, DIM))
-    a = Metacal(noise, psf_im, wcs, step=STEP, types=TYPES).get_images()
+    a = Metacal(
+        image=noise,
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=AZGauss(),
+        step=STEP,
+        types=TYPES,
+    ).get_images()
     b = Metacal(
-        noise, psf_im, wcs, step=STEP, types=TYPES, rotation=None
+        image=noise,
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=AZGauss(),
+        step=STEP,
+        types=TYPES,
+        rotation=None
     ).get_images()
     for t in TYPES:
         assert np.array_equal(a[t], b[t])
@@ -73,15 +94,24 @@ def test_rotation_none_is_noop():
 
 def test_rotation_requires_angle():
     """rotation must be a galsim.Angle, not a bare number"""
-    psf_im, gal_im, wcs = _build(None)
+    psf_image, gal_im, wcs = _build(None)
     noise = np.random.RandomState(7).normal(size=(DIM, DIM))
     with pytest.raises(TypeError):
-        Metacal(noise, psf_im, wcs, step=STEP, types=TYPES, rotation=90.0)
+        Metacal(
+            image=noise,
+            psf_image=psf_image,
+            wcs=wcs,
+            target_psf=AZGauss(),
+            step=STEP,
+            types=TYPES,
+            rotation=90.0,
+        )
     # a galsim.Angle is accepted
     Metacal(
-        noise,
-        psf_im,
-        wcs,
+        image=noise,
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=AZGauss(),
         step=STEP,
         types=TYPES,
         rotation=90 * galsim.degrees,
@@ -94,22 +124,36 @@ def test_sky_rot_conformal_matches_pixel(theta):
     for a CONFORMAL wcs (diagonal or pure rotation) the sky 90 rotation
     reproduces the pixel np.rot90 correction field to interpolation precision
     """
-    psf_im, gal_im, wcs = _build(theta)
-    _, NP = delta_transfer_kspace(psf_im, wcs, DIM, STEP, TYPES)
+    psf_image, gal_im, wcs = _build(theta)
+    _, NP = delta_transfer_kspace(
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=AZGauss(),
+        dim=DIM,
+        step=STEP,
+        types=TYPES,
+    )
     n2 = np.random.RandomState(11).normal(size=(DIM, DIM))
     pix = {
         t: np.rot90(
             Metacal(
-                np.rot90(n2, 1), psf_im, wcs, step=STEP, types=TYPES, Np=NP
+                image=np.rot90(n2, 1),
+                psf_image=psf_image,
+                wcs=wcs,
+                target_psf=AZGauss(),
+                step=STEP,
+                types=TYPES,
+                Np=NP
             ).get_images()[t],
             3,
         )
         for t in TYPES
     }
     sky = Metacal(
-        n2,
-        psf_im,
-        wcs,
+        image=n2,
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=AZGauss(),
         step=STEP,
         types=TYPES,
         Np=NP,
@@ -126,23 +170,37 @@ def test_sky_rot_diverges_under_distortion():
     """
     M = distortion_matrix(SCALE, g1=0.10, g2=0.05)
     wcs = galsim_wcs(M)
-    psf_im = (
+    psf_image = (
         galsim.Moffat(beta=2.5, fwhm=0.9)
         .drawImage(nx=DIM, ny=DIM, wcs=wcs)
         .array
     )
-    _, NP = delta_transfer_kspace(psf_im, wcs, DIM, STEP, TYPES)
+    _, NP = delta_transfer_kspace(
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=AZGauss(),
+        dim=DIM,
+        step=STEP,
+        types=TYPES,
+    )
     n2 = np.random.RandomState(11).normal(size=(DIM, DIM))
     pix = np.rot90(
         Metacal(
-            np.rot90(n2, 1), psf_im, wcs, step=STEP, types=TYPES, Np=NP
+            image=np.rot90(n2, 1),
+            psf_image=psf_image,
+            wcs=wcs,
+            target_psf=AZGauss(),
+            step=STEP,
+            types=TYPES,
+            Np=NP
         ).get_images()['noshear'],
         3,
     )
     sky = Metacal(
-        n2,
-        psf_im,
-        wcs,
+        image=n2,
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=AZGauss(),
         step=STEP,
         types=TYPES,
         Np=NP,
@@ -153,11 +211,25 @@ def test_sky_rot_diverges_under_distortion():
 
 def test_kspace_filters_finite_and_capped():
     """the hybrid filters (padded Np grid) are real, finite and capped at 1"""
-    psf_im, gal_im, wcs = _build(45.0)
+    psf_image, gal_im, wcs = _build(45.0)
     jmat = distortion_matrix(SCALE, theta=45 * galsim.degrees)
-    pts, Np = delta_transfer_kspace(psf_im, wcs, DIM, STEP, TYPES)
+    pts, Np = delta_transfer_kspace(
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=AZGauss(),
+        dim=DIM,
+        step=STEP,
+        types=TYPES,
+    )
     pts_rot, _ = delta_transfer_kspace(
-        psf_im, wcs, DIM, STEP, TYPES, Np=Np, rotation=90 * galsim.degrees
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=AZGauss(),
+        dim=DIM,
+        step=STEP,
+        types=TYPES,
+        Np=Np,
+        rotation=90 * galsim.degrees
     )
     G = make_hybrid_filters_kspace(pts, pts_rot, Np, SCALE, TYPES, jmat=jmat)
     for t in TYPES:

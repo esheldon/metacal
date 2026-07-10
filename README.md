@@ -40,6 +40,7 @@ res = metacal.metacal_image(
     psf_image=psf_image,
     noise_image=noise_image,
     wcs=wcs,
+    target_psf=metacal.AZGauss(),
 )
 ```
 

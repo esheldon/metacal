@@ -5,6 +5,7 @@ import numpy as np
 import galsim
 import pytest
 
+from metacal import AZGauss
 from metacal import metacal_obs
 from metacal.wcs import distortion_matrix, galsim_wcs
 
@@ -85,7 +86,12 @@ def test_metacal_matches_ngmix(theta):
             fixnoise=False,
         )
 
-        res = metacal_obs(mkobs, rng=rng, types=TYPES)
+        res = metacal_obs(
+            mkobs,
+            target_psf=AZGauss(),
+            rng=rng,
+            types=TYPES,
+        )
 
         for t in TYPES:
             ngmix_image = ngmix_odict[t].image

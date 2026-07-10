@@ -4,6 +4,7 @@ from .defaults import DEFAULT_TYPES
 
 def metacal_obs(
     obs,
+    target_psf,
     rng,
     step=0.01,
     types=DEFAULT_TYPES,
@@ -16,6 +17,10 @@ def metacal_obs(
     ----------
     obs: ngmix.Observation
         The ngmix Observation, with image, psf etc.
+    target_psf: A callable that returns a galsim object
+        This should be callable with target_psf(psf=psf, flux=flux),
+        with psf a galsim object such as galsim.InterpolatedImage.  For
+        an example see metacal.AZGauss
     rng: np.random.RandomState
         For adding a little noise to the PSF image
     step: float
@@ -42,8 +47,9 @@ def metacal_obs(
     res = metacal_image(
         image=obs.image,
         psf_image=obs.psf.image,
-        wcs=wcs,
         noise_image=noise_image,
+        wcs=wcs,
+        target_psf=target_psf,
         step=step,
         types=types,
     )
