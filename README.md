@@ -20,7 +20,7 @@ frame:
 Why a new package?
 ------------------
 
-The new methods a clearly better than the old ones, but due to poor design
+The new methods are clearly better than the old ones, but due to poor design
 choices in ngmix (using a "default keyword" structure for these features),
 there was no easy way to slot them in as the new defaults.  Easier to make a
 clean break.
@@ -33,8 +33,14 @@ import galsim
 from metacal import metacal
 
 # send noise_image= to apply the noise correction.  Noise can
-# be correlated and non stationary
-res = metacal(image, psf_image, wcs, noise_image=noise_image)
+# be correlated and non stationary. Send noise_image=None to not
+# apply a correction
+res = metacal(
+    image=image,
+    psf_image=psf_image,
+    noise_image=noise_image,
+    wcs=wcs,
+)
 ```
 
 It can also work on an ngmix Observation (although ngmix is not a requirement).

@@ -1,52 +1,17 @@
-"""
-the hybrid noise correction's deficit: the per-type k-space power ``P_add``
-that fills each metacal type's m=2/m=6 azimuthal modulation up to a common
-level over types, so the corrected noise is spin-2 isotropic and the metacal
-response is unbiased.
-
-The azimuthal projection uses the rotation-covariant TRAPEZOIDAL (arc-length)
-quadrature, and the polar grid is mapped to the SKY frame via the wcs jacobian
-before binning. These two choices make the correction orientation
-distortion-correct
-"""
-
 import numpy as np
 
 
 def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
     """
-    the per-type deficit powers P_add that fill each type's m=2 (and m=6)
-    modulation up to the common (max over types) amplitude, and raise each
-    type's isotropic mean to the common mean.
+    Calculate the deficit power
 
-    This brings noshear/1p/1m to the same noise level (required for the metacal
-    response to be unbiased; the metacal shear gives 1p/1m an m=2 even for a
-    round PSF, so noshear is filled up to their level) and leaves the total
-    power m=2 isotropic.  Only m=2/m=6 (the harmonics the 90-degree rotation
-    flips, both lattice-aliasing immune) and the mean are filled; m=4 is left
-    alone (rotation-invariant, spin-4, does not bias shear).  Filling harmonics
-    rather than (annulus_max - P_t) avoids clipping at the m=4 peaks, which
-    would leave a spurious m=2.
-
-    The azimuthal average uses the rotation-covariant trapezoidal quadrature
-    (``_trapz_weights``). Each mode is weighted by its angular Voronoi cell,
-    which approximates the continuum integral and removes the square-lattice
-    cos(4 phi) gain error of the plain discrete mean (that gain error is the
-    rotation leak; it fills the metacal g1/g2 deficits, 45 deg apart, at
-    unequal gains -> a response anisotropy).
-
-    The m-mode projection is done in sky angle via ``jac`` (the pixel->sky
-    jacobian): the shear bias is a sky-frame contraction Tr[Q C], so it is the
-    sky-frame spin-2 that must be cancelled.  A diagonal scale maps to the
-    identity (no-op); a pure rotation rotates theta by the wcs angle (absorbed
-    by the (c_m, s_m) reconstruction, also a no-op); only a non-conformal shear
-    actually changes the projection, where it is the correct target.  So
-    ``jac`` can always be passed.
+    Project the transfer function onto modes. To ensure that all types get the
+    same level of noise, the max amplitude and mean is used over types.
 
     Parameters
     ----------
     pts: dict of type -> (dim, dim) array
-        the per-type power on the full fft2 grid
+        A dict holding the Pt=square of the transfer function for each type.
     dim: int
         grid size (the padded k-grid Np for the k-space metacal)
     scale: float
@@ -63,9 +28,11 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
     -------
     dict of type -> (dim, dim) array
     """
+
     # 1d wavenumbers along one axis: 2*pi*fftfreq gives k in rad/arcsec
     kx = 2 * np.pi * np.fft.fftfreq(dim, d=scale)
     kxg, kyg = np.meshgrid(kx, kx)
+
     if jac is not None:
         # map the pixel-frame wavenumbers to the sky frame: a pixel mode
         # exp(i k.x) with sky coords u = M x has sky wavevector M^{-T} k;
@@ -76,6 +43,7 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
             minvt[0, 0] * kxg + minvt[0, 1] * kyg,
             minvt[1, 0] * kxg + minvt[1, 1] * kyg,
         )
+
     kmag = np.hypot(kxg, kyg)
     theta = np.arctan2(kyg, kxg)
     dk = 2 * np.pi / (dim * scale)
@@ -83,7 +51,7 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
     nb = ibin.max() + 1
     kprof = np.arange(nb) * dk
 
-    # the rotation-covariant azimuthal average: each mode weighted by its
+    # the rotation-covariant azimuthal average. Each mode gets weighted by its
     # angular Voronoi cell (sums to 1 per annulus)
     wgrid = _trapz_weights(theta, ibin, nb)
 
@@ -92,9 +60,10 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
             ibin.ravel(), weights=(wgrid * x).ravel(), minlength=nb
         )
 
-    # decompose each type's power azimuthally: the m=0 mean profile and the
-    # (c_m, s_m) m-mode coefficients per annulus
+    # the raw mode projection and mean for each type
+
     means, coeffs = {}, {}
+
     for t, pt in pts.items():
         means[t] = az_avg(pt)
         coeffs[t] = {}
@@ -103,8 +72,9 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
                 az_avg(pt * np.cos(m * theta)),
                 az_avg(pt * np.sin(m * theta)),
             )
-    # common envelope over types (elementwise max per annulus): we can only ADD
-    # power, so fill everyone up to the tallest mean / m-mode amplitude
+
+    # Elementwise max per annulus to ensure all metacal types
+    # get a common, maximum noise level added
     common_mean = np.maximum.reduce([means[t] for t in pts])
     common_amp = {
         m: np.maximum.reduce([2 * np.hypot(*coeffs[t][m]) for t in pts])
@@ -115,16 +85,20 @@ def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
     for t in pts:
         # m=0: raise this type's isotropic level up to the common mean
         padd = np.interp(kmag, kprof, common_mean - means[t])
+
         for m in ms:
             cmk = np.interp(kmag, kprof, coeffs[t][m][0])
             smk = np.interp(kmag, kprof, coeffs[t][m][1])
             amk = np.interp(kmag, kprof, common_amp[m])
-            # cancel P_t's own m-modulation and top up to the common amplitude
+
+            # minus sign to match the rotated noise field
             padd += (
                 amk - 2 * cmk * np.cos(m * theta) - 2 * smk * np.sin(m * theta)
             )
+
         # power added through |H|^2 must be non-negative
         out[t] = padd.clip(min=0)
+
     return out
 
 
@@ -135,32 +109,47 @@ def _trapz_weights(theta, ibin, nb):
 
     Within each |k| annulus every mode is weighted by the angular gap it
     occupies, half the gap to each of its two cyclic neighbours, and the
-    weights are normalized to sum to 1 over the annulus.  This is the
-    trapezoidal rule on the non-uniform ring of FFT modes: it approximates the
-    continuum azimuthal average and drives the square-lattice moments <cos
-    4theta>, <cos 8theta>, ... (which bias the plain uniform mean and make the
-    m=2 projection orientation dependent) down to the trapezoidal error; a
-    rotation-covariant projection.
+    weights are normalized to sum to 1 over the annulus.
 
-    Pure grid geometry (no power), so it could be precomputed once per grid.
+    This is the trapezoidal rule on the non-uniform ring of FFT modes. It
+    approximates the continuum azimuthal average and suppresses the moments
+    <cos 4theta>, <cos 8theta>, etc. that bias the straight sum
+    over pixels and make the m=2 projection orientation dependent.
+
+    This is just geometry, so it can be precomputed once per grid
     """
+
     th = theta.ravel()
     ib = ibin.ravel()
     w = np.zeros(th.size)
+
     for b in range(nb):
+
         sel = np.nonzero(ib == b)[0]
+
         n = sel.size
+
         if n == 0:
             continue
+
         if n <= 2:
-            # one or two modes: the Voronoi cells are equal -> uniform weight
+            # There is only one or two modes, so the Voronoi cells are equal
             w[sel] = 1.0 / n
             continue
+
         order = np.argsort(th[sel])
+
         a = th[sel[order]]
-        gap = np.empty(n)  # gap to the next mode (cyclic: last wraps +2pi)
+
+        # gap to the next mode (cyclic: last wraps +2pi)
+        gap = np.empty(n)
+
         gap[:-1] = np.diff(a)
         gap[-1] = a[0] + 2.0 * np.pi - a[-1]
-        cell = 0.5 * (gap + np.roll(gap, 1))  # half the gap on either side
+
+        # half the gap on either side
+        cell = 0.5 * (gap + np.roll(gap, 1))
+
         w[sel[order]] = cell / cell.sum()  # sum(cell)=2pi -> normalized to 1
+
     return w.reshape(theta.shape)

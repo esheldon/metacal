@@ -5,7 +5,7 @@ import numpy as np
 import galsim
 import pytest
 
-from metacal.metacal import metacal_obs
+from metacal import metacal_obs
 from metacal.wcs import distortion_matrix, galsim_wcs
 
 ngmix = pytest.importorskip('ngmix')

@@ -9,16 +9,15 @@ from .azgauss_target_psf import get_azgauss_target_psf
 
 from .deficit import common_harmonic_deficits
 from .wcs import galsim_wcs
-
-LANCZOS = 'lanczos15'
-DEFAULT_TYPES = ('noshear', '1p', '1m')
+from .metacal_result import MetacalResult
+from .defaults import LANCZOS, DEFAULT_TYPES
 
 
 def metacal(
     image,
     psf_image,
+    noise_image,
     wcs,
-    noise_image=None,
     step=0.01,
     types=DEFAULT_TYPES,
 ):
@@ -30,18 +29,20 @@ def metacal(
     image: array
         the image to metacal
     psf_image: array
-        the psf image (pixel-convolved, as drawn); deconvolved from the image
-        and used to derive the round gaussian reconvolution target
-    wcs: galsim local/Jacobian wcs, or a 2x2 array
-        the pixel->sky wcs.  May be given as the 2x2
-        pixel->sky matrix (col, row order) instead of a galsim wcs
-    noise_image: array, optional
-        A noise field used to correct for the anisotropic noise created by the
-        metacal process.
+        the psf image
+    wcs: galsim WCS
+        May also be given as the 2x2 pixel->sky matrix (col, row order) instead
+        of a galsim wcs
+    noise_image: array
+        A noise field for noise anisotropy correction.  Send None to not apply
+        a correction.  The noise field should match the noise in image.
     step: float
         metacal shear step
     types: sequence of str
-        any of 'noshear', '1p', '1m', '2p', '2m'
+        any of 'noshear', '1p', '1m', '2p', '2m'.  Note that to get the noise
+        correction right, you need to send the +/- as well as noshear to be
+        processed all together.  This is because they are all needed to
+        determine the overall level of noise to be used (max among the types).
 
     Returns
     -------
@@ -70,90 +71,12 @@ def metacal(
         )
 
 
-def metacal_obs(
-    obs,
-    rng,
-    step=0.01,
-    types=DEFAULT_TYPES,
-):
-    """
-    Metacal an ngmix.Observation.  If a .noise is present, the
-    noise corrections are applied.
-
-    Parameters
-    ----------
-    obs: ngmix.Observation
-        The ngmix Observation, with image, psf etc.
-    rng: np.random.RandomState
-        For adding a little noise to the PSF image
-    step: float
-        metacal shear step
-    types: sequence of str
-        any of 'noshear', '1p', '1m', '2p', '2m'
-
-    Notes
-    -----
-    ngmix is not actually required; the input "obs" can duck
-    type the needed attributes and methods.
-    """
-
-    if not obs.has_psf():
-        raise ValueError('observation must have a .psf')
-
-    if obs.has_noise():
-        noise_image = obs.noise
-    else:
-        noise_image = None
-
-    wcs = obs.jacobian.get_galsim_wcs()
-
-    res = metacal(
-        image=obs.image,
-        psf_image=obs.psf.image,
-        wcs=wcs,
-        noise_image=noise_image,
-        step=step,
-        types=types,
-    )
-
-    # pack each back into a ngmix.Observation, rescaling the weight map for the
-    # noise-variance increase from the correction (a no-op when
-    # noise_var_factor is 1, i.e. no correction was applied)
-    odict = {}
-    for key, image in res.items():
-
-        oobs = obs.copy()
-        oobs.image = image
-
-        if res.noise_var_factor != 1.0:
-            oobs.weight = oobs.weight / res.noise_var_factor
-
-        _update_psf(res=res, psf_obs=oobs.psf, rng=rng)
-
-        odict[key] = oobs
-
-    return odict
-
-
-def _update_psf(res, psf_obs, rng):
-    psf_image = res.psf_image.copy()
-
-    psf_noise = psf_image.max() / 50000.0
-    psf_image += rng.normal(
-        size=psf_image.shape,
-        scale=psf_noise,
-    )
-    psf_weight = psf_image * 0 + 1.0 / psf_noise ** 2
-
-    # pixels will be updated after exit from context
-    with psf_obs.writeable():
-        psf_obs.image[:, :] = psf_image
-        psf_obs.weight[:, :] = psf_weight
-
-
 class Metacal:
     """
     Metacal a single image.
+
+    You usually want to use the convenience function metacal().
+    Only use this class if you know what you are doing.
 
     Parameters
     ----------
@@ -334,64 +257,6 @@ class Metacal:
         ).array
 
 
-class MetacalResult:
-    """
-    The result of a :func:`metacal` run.
-
-    Keyed by metacal type to the sheared images (``res['noshear']``); and is
-    iterable / supports ``keys``/``values``/``items``/``in``/``len`` like a
-    dict -- while also exposing the reconvolution psf image and the predicted
-    noise-variance increase.
-
-    Attributes
-    ----------
-    images: dict
-        the sheared images keyed by metacal type
-    psf_image: array
-        the round reconvolution (target) psf image, common to all types
-    noise_var_factor: float
-        the factor by which the per-pixel noise variance increased due to the
-        rotated-hybrid noise correction, relative to plain (uncorrected)
-        metacal.  1.0 when no noise correction was applied; ~1.04 for a round
-        psf, rising toward 2.0 (the full fixnoise level) as the psf becomes
-        more elliptical.  The corrected noise lands at a common level across
-        all types, so this is a single number.  Downstream, multiply the noise
-        variance (or divide the weight map) by this factor.
-    """
-
-    def __init__(self, images, psf_image, noise_var_factor):
-        self.images = images
-        self.psf_image = psf_image
-        self.noise_var_factor = noise_var_factor
-
-    def __getitem__(self, key):
-        return self.images[key]
-
-    def __iter__(self):
-        return iter(self.images)
-
-    def __len__(self):
-        return len(self.images)
-
-    def __contains__(self, key):
-        return key in self.images
-
-    def keys(self):
-        return self.images.keys()
-
-    def values(self):
-        return self.images.values()
-
-    def items(self):
-        return self.images.items()
-
-    def __repr__(self):
-        return (
-            f'MetacalResult(types={list(self.images)}, '
-            f'noise_var_factor={self.noise_var_factor:.4f})'
-        )
-
-
 def _metacal_with_noise_correction(
     image,
     psf_image,
@@ -410,7 +275,13 @@ def _metacal_with_noise_correction(
     wcs, jmat = _wcs_and_matrix(wcs)
 
     # one shared padded grid for the transfer, the galaxy and the noise
-    pts, npix = delta_transfer_kspace(psf_image, wcs, dim, step, types)
+    pts, npix = delta_transfer_kspace(
+        psf_image,
+        wcs,
+        dim,
+        step,
+        types,
+    )
     pts_rot, _ = delta_transfer_kspace(
         psf_image,
         wcs,
@@ -429,7 +300,7 @@ def _metacal_with_noise_correction(
     mcal = Metacal(image, psf_image, wcs, step=step, types=types, Np=npix)
     mcal_images = mcal.get_images()
 
-    # the sky-rotated correction field, metacal'd, filtered to the deficit,
+    # the sky-rotated correction field, metacal'd, filtered,
     # and rotated back.  already in the final frame
     mcal_noise = Metacal(
         noise_image,
