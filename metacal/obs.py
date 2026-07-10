@@ -1,8 +1,8 @@
-from .metacalibration import metacal_image
+from .metacalibration import metacal_modecorr
 from .defaults import DEFAULT_TYPES
 
 
-def metacal_obs(
+def metacal_obs_modecorr(
     obs,
     target_psf,
     rng,
@@ -10,8 +10,8 @@ def metacal_obs(
     types=DEFAULT_TYPES,
 ):
     """
-    Metacal an ngmix.Observation.  If a .noise is present, the
-    noise corrections are applied.
+    Metacal an ngmix.Observation.  If a noise image is present (obs.has_noise()
+    is True), the noise corrections are applied.
 
     Parameters
     ----------
@@ -22,7 +22,7 @@ def metacal_obs(
         with psf a galsim object such as galsim.InterpolatedImage.  For
         an example see metacal.AZGauss
     rng: np.random.RandomState
-        For adding a little noise to the PSF image
+        For adding a little noise to the final PSF image
     step: float
         metacal shear step
     types: sequence of str
@@ -37,17 +37,15 @@ def metacal_obs(
     if not obs.has_psf():
         raise ValueError('observation must have a .psf')
 
-    if obs.has_noise():
-        noise_image = obs.noise
-    else:
-        noise_image = None
+    if not obs.has_noise():
+        raise ValueError('observation must have a .noise set')
 
     wcs = obs.jacobian.get_galsim_wcs()
 
-    res = metacal_image(
+    res = metacal_modecorr(
         image=obs.image,
         psf_image=obs.psf.image,
-        noise_image=noise_image,
+        noise_image=obs.noise,
         wcs=wcs,
         target_psf=target_psf,
         step=step,

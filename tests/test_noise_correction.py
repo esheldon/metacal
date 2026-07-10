@@ -6,7 +6,7 @@ import numpy as np
 import galsim
 import pytest
 
-from metacal import metacal_image
+from metacal import metacal_image, metacal_modecorr
 from metacal import AZGauss
 from metacal.metacalibration import (
     Metacal,
@@ -58,7 +58,7 @@ def test_metacal_hybrid_runs(wcs_kw):
     diagonal and a distorted wcs, including the full 5-type set
     """
     psf_image, image, noise, wcs = _scene(**wcs_kw)
-    res = metacal_image(
+    res = metacal_modecorr(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
@@ -79,14 +79,14 @@ def test_wcs_can_be_a_matrix():
     """
     psf_image, image, noise, wcs = _scene(theta=10.0, g1=0.01, g2=-0.005)
     M = distortion_matrix(SCALE, theta=10 * galsim.degrees, g1=0.01, g2=-0.005)
-    a = metacal_image(
+    a = metacal_modecorr(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
         wcs=wcs,
         target_psf=AZGauss(),
     )
-    b = metacal_image(
+    b = metacal_modecorr(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
@@ -106,7 +106,6 @@ def test_metacal_convenience():
     a = metacal_image(
         image=image,
         psf_image=psf_image,
-        noise_image=None,
         wcs=wcs,
         target_psf=AZGauss(),
     )
@@ -126,11 +125,10 @@ def test_hybrid_adds_only_the_filtered_deficit():
     plain = metacal_image(
         image=image,
         psf_image=psf_image,
-        noise_image=None,
         wcs=wcs,
         target_psf=target_psf,
     )
-    hyb = metacal_image(
+    hyb = metacal_modecorr(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
@@ -160,7 +158,6 @@ def test_noise_var_factor_is_one_without_correction():
     assert metacal_image(
         image=image,
         psf_image=psf_image,
-        noise_image=None,
         wcs=wcs,
         target_psf=AZGauss(),
     ).noise_var_factor == 1.0
@@ -175,14 +172,14 @@ def test_noise_var_factor_grows_with_ellipticity():
 
     psf_r, im_r, nz_r, wcs = _scene(psf_g1=0.0)
     psf_e, im_e, nz_e, wcs = _scene(psf_g1=0.10)
-    fac_round = metacal_image(
+    fac_round = metacal_modecorr(
         image=im_r,
         psf_image=psf_r,
         noise_image=nz_r,
         wcs=wcs,
         target_psf=target_psf,
     ).noise_var_factor
-    fac_ell = metacal_image(
+    fac_ell = metacal_modecorr(
         image=im_e,
         psf_image=psf_e,
         noise_image=nz_e,
@@ -201,7 +198,7 @@ def test_noise_var_factor_predicts_variance_ratio():
     target_psf = AZGauss()
 
     psf_image, image, noise, wcs = _scene(psf_g1=0.08)
-    pred = metacal_image(
+    pred = metacal_modecorr(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
