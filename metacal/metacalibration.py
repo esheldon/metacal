@@ -30,10 +30,10 @@ def metacal_image(
     wcs: galsim WCS
         A galsim local wcs/Jacobian.  May also be given as the 2x2 pixel->sky
         matrix (col, row order) instead of a galsim wcs
-    target_psf: A callable that returns a galsim object
-        This should be callable with target_psf(psf=psf, flux=flux),
-        with psf a galsim object such as galsim.InterpolatedImage.  For
-        an example see metacal.AZGauss
+    target_psf: A callable that returns a galsim object or a galsim.GSObject
+        This should be a galsim.GSObject or a callable with target_psf(psf=psf,
+        flux=flux), with psf a galsim object such as galsim.InterpolatedImage.
+        For an example see metacal.AZGauss
     step: float
         metacal shear step
     types: sequence of str
@@ -83,10 +83,10 @@ class Metacal:
     wcs: galsim local/Jacobian wcs, or a 2x2 array
         A galsim local wcs/Jacobian.  May also be given as the 2x2 pixel->sky
         matrix (col, row order) instead of a galsim wcs
-    target_psf: A callable that returns a galsim object
-        This should be callable with target_psf(psf=psf, flux=flux),
-        with psf a galsim object such as galsim.InterpolatedImage.  For
-        an example see metacal.AZGauss
+    target_psf: A callable that returns a galsim object or a galsim.GSObject
+        This should be a galsim.GSObject or a callable with target_psf(psf=psf,
+        flux=flux), with psf a galsim object such as galsim.InterpolatedImage.
+        For an example see metacal.AZGauss
     step: float
         metacal shear step
     types: sequence of str
@@ -149,9 +149,12 @@ class Metacal:
 
         # the round gaussian reconvolution target, dilated by 1 + 2*step; the
         # same target for every type (only the galaxy is sheared)
-        self._target_psf = target_psf(psf_int, flux=self.psf_flux).dilate(
-            1.0 + 2.0 * self._step
-        )
+        if isinstance(target_psf, galsim.GSObject):
+            tpsf = target_psf.withFlux(self.psf_flux)
+        else:
+            tpsf = target_psf(psf_int, flux=self.psf_flux)
+
+        self._target_psf = tpsf.dilate(1.0 + 2.0 * self._step)
 
         # the padded draw grid (galsim's own drawFFT size unless shared via Np)
         self._Np = self._galsim_kpad_size() if Np is None else int(Np)

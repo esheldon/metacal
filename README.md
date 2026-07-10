@@ -26,22 +26,26 @@ res = metacal.metacal_modecorr(
 )
 
 # The correction uses the input noise image, matched to the noise of the data,
-# along with the metacalibration transfer function to remove spin-2 modes
-# imprinted on the noise power spectrum
-#
-# A minimal amount of noise is added, increasing the total noise by a few
-# percent for typical PSFs.
+# along with the metacalibration transfer function to cancel spin-2 modes
+# imprinted on the noise power spectrum.  A minimal amount of noise is added,
+# increasing the total noise by a few percent for typical PSFs.
 #
 # The noise can be correlated and non stationary.
+#
+# The user can provice their own target_psf, either as a callable or a
+# galsim.GSObject
 
-# res is a MetacalResult, which is a dict-like keyed by metacal type.
-# Each item has the corresponding image.  It also has attributes
-# .psf_image and .noise_var_vactor, the factor by which the
-# noise^2 was increased by the added noise
+# The returned res is a MetacalResult, which is a dict-like keyed by metacal
+# type ('1p', 'noshear', etc).  Each item is the corresponding image.  The
+# result also has attributes
+#   .psf_image: the final target reconvolution PSF
+#   .noise_var_vactor, the factor by which the noise^2 was increased by
+#       the added noise
 
 # The metacal_image function implements the basic metcalibration operations, It
 # and the metacal.metacalibration.Metacal class can be used to build your own
 # noise corrections.
+
 res = metacal.metacal_image(
     image=image,
     psf_image=psf_image,
@@ -55,7 +59,7 @@ a requirement).
 ```python
 import galsim
 
-res = metacal.metacal_obs_modecorr(obs)
+res = metacal.metacal_modecorr_obs(obs)
 
 # Here res is a dict holding observations for each requested metacal
 # type.  The Observation must have a the .noise filled
@@ -65,15 +69,20 @@ res = metacal.metacal_obs_modecorr(obs)
 Why a new package?
 ------------------
 
-The new noise method and reconvolution kernel included in this package are
-clearly better than the old ones, but due to poor design choices in ngmix
-(using a "default keyword" structure for these features), there was no easy way
-to slot them in as the new defaults without breaking backwards compatibility.
-Easier to make a clean break.
+The new noise method and reconvolution kernel AZGauss included in this package
+are significantly better than the old defaults from ngmix. But, due to poor
+design choices in ngmix (using a "default keyword" structure for these
+features), there was no easy way to slot them in as the new defaults without
+breaking backwards compatibility.  We decided to make a clean break.
 
-This package is designed so that the user explicity sends the methods to be
-used as instantiated objects.  This allows new methods can be developed and
-used without breaking backwards compatibility.
+This package is designed so that the user must explicity send the object that
+creates the target psf (we provide AZGauss) or their own galsim.GSObject.  No
+default is provided.
+
+Simularly, we provide an explicit function that implements metacal with the
+"modecorr" noise correction.  If another method is developed, we will provide
+new function rather than change the behavior of the existing one.  And the user
+can create of course create their own.
 
 ## Dependencies
 

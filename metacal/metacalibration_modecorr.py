@@ -1,5 +1,6 @@
 """
-Metacalibration
+Metacalibration with noise correction that cancels spin-2 modes induced by by
+the metacal process
 """
 
 import numpy as np

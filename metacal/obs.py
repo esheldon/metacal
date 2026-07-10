@@ -17,10 +17,10 @@ def metacal_modecorr_obs(
     ----------
     obs: ngmix.Observation
         The ngmix Observation, with image, psf etc.
-    target_psf: A callable that returns a galsim object
-        This should be callable with target_psf(psf=psf, flux=flux),
-        with psf a galsim object such as galsim.InterpolatedImage.  For
-        an example see metacal.AZGauss
+    target_psf: A callable that returns a galsim object or a galsim.GSObject
+        This should be a galsim.GSObject or a callable with target_psf(psf=psf,
+        flux=flux), with psf a galsim object such as galsim.InterpolatedImage.
+        For an example see metacal.AZGauss
     rng: np.random.RandomState
         For adding a little noise to the final PSF image
     step: float
