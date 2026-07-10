@@ -9,7 +9,7 @@ import pytest
 from metacal import AZGauss
 from metacal.metacalibration import (
     Metacal,
-    _delta_transfer_kspace,
+    _impulse_transfer_kspace,
     _make_hybrid_filters_kspace,
 )
 from metacal.wcs import distortion_matrix, galsim_wcs
@@ -51,7 +51,7 @@ def test_delta_transfer_padded(theta):
     """the transfer is on galsim's padded draw grid Np (>= the stamp), finite
     and non-negative"""
     psf_image, gal_im, wcs = _build(theta)
-    pts, Np = _delta_transfer_kspace(
+    pts, Np = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -125,7 +125,7 @@ def test_sky_rot_conformal_matches_pixel(theta):
     reproduces the pixel np.rot90 correction field to interpolation precision
     """
     psf_image, gal_im, wcs = _build(theta)
-    _, NP = _delta_transfer_kspace(
+    _, NP = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -175,7 +175,7 @@ def test_sky_rot_diverges_under_distortion():
         .drawImage(nx=DIM, ny=DIM, wcs=wcs)
         .array
     )
-    _, NP = _delta_transfer_kspace(
+    _, NP = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -213,7 +213,7 @@ def test_kspace_filters_finite_and_capped():
     """the hybrid filters (padded Np grid) are real, finite and capped at 1"""
     psf_image, gal_im, wcs = _build(45.0)
     jmat = distortion_matrix(SCALE, theta=45 * galsim.degrees)
-    pts, Np = _delta_transfer_kspace(
+    pts, Np = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -221,7 +221,7 @@ def test_kspace_filters_finite_and_capped():
         step=STEP,
         types=TYPES,
     )
-    pts_rot, _ = _delta_transfer_kspace(
+    pts_rot, _ = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),

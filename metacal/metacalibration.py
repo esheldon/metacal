@@ -300,7 +300,7 @@ def _metacal_with_noise_correction(
     wcs, jmat = _wcs_and_matrix(wcs)
 
     # one shared padded grid for the transfer, the galaxy and the noise
-    pts, npix = _delta_transfer_kspace(
+    pts, npix = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
@@ -308,7 +308,7 @@ def _metacal_with_noise_correction(
         step=step,
         types=types,
     )
-    pts_rot, _ = _delta_transfer_kspace(
+    pts_rot, _ = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
@@ -386,17 +386,17 @@ def _predict_noise_var_factor(pts, pts_rot, hfilt, types):
     return 1.0 + v_added / v_plain
 
 
-def _delta_transfer_kspace(
+def _impulse_transfer_kspace(
     psf_image, wcs, target_psf, dim, step, types, Np=None, rotation=None
 ):
     """
     the per-type metacal noise transfer P_t = |K_t|^2 on the padded Np x Np
-    grid, computed k-natively: push a unit delta through ``Metacal`` and take
-    |k-array|^2 directly (|fft2(delta)| = 1, so this is relative to a white
-    input).  ``Np`` (default galsim's draw size) must match the Metacal whose
-    noise this filter cancels.  ``rotation = 90 * galsim.degrees`` builds the
-    rotated transfer P_t^rot = |rotateback(metacal(delta))|^2 (the corr-field
-    transfer after the sky rotate-back).
+    grid, computed k-natively: push a unit delta impulse through ``Metacal``
+    and take |k-array|^2 directly (|fft2(delta)| = 1, so this is relative to a
+    white input).  ``Np`` (default galsim's draw size) must match the Metacal
+    whose noise this filter cancels.  ``rotation = 90 * galsim.degrees`` builds
+    the rotated transfer P_t^rot = |rotateback(metacal(delta))|^2 (the
+    corr-field transfer after the sky rotate-back).
 
     Returns the Np x Np power dict and the Np used.
     """
@@ -440,7 +440,7 @@ def _make_hybrid_filters_kspace(
     ----------
     pts, pts_rot: dict type -> (Np, Np) array
         the un-rotated and sky-rotated metacal transfers
-        (_delta_transfer_kspace
+        (_impulse_transfer_kspace
         with rotation None and 90*galsim.degrees)
     npix: int
         the grid size Np
