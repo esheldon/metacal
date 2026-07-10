@@ -67,7 +67,7 @@ def metacal_image(
         )
         return MetacalResult(
             images=mcal.get_images(),
-            psf_image=mcal.target_psf_image(),
+            psf_image=mcal.get_target_psf_image(),
             noise_var_factor=1.0,
         )
     else:
@@ -140,104 +140,46 @@ class Metacal:
                 '(e.g. 90 * galsim.degrees) or '
                 f'None, got {type(rotation).__name__}'
             )
-        self.N = image.shape[0]
-        self.psf_image = psf_image
-        self.wcs, self.wcs_matrix = _wcs_and_matrix(wcs)
-        self.step = step
-        self.types = list(types)
-        self.rotation = rotation
+        self._N = image.shape[0]
+        self._psf_image = psf_image
+        self._wcs, self._wcs_matrix = _wcs_and_matrix(wcs)
+        self._step = step
+        self._types = list(types)
+        self._rotation = rotation
         self._khats = None
 
-        img = galsim.Image(np.asarray(image, dtype=float), wcs=self.wcs)
-        self.image_int = galsim.InterpolatedImage(
+        img = galsim.Image(np.asarray(image, dtype=float), wcs=self._wcs)
+        self._image_int = galsim.InterpolatedImage(
             img, x_interpolant=x_interpolant
         )
-        if self.rotation is not None:
-            self.image_int = self.image_int.rotate(self.rotation)
+        if self._rotation is not None:
+            self._image_int = self._image_int.rotate(self._rotation)
 
-        pimg = galsim.Image(np.asarray(psf_image, dtype=float), wcs=self.wcs)
+        pimg = galsim.Image(np.asarray(psf_image, dtype=float), wcs=self._wcs)
         psf_int = galsim.InterpolatedImage(pimg, x_interpolant=LANCZOS)
         self.psf_flux = float(np.sum(psf_image))
 
         # deconvolve the psf (and the pixel it carries) from the image
-        self.image_int_nopsf = galsim.Convolve(
-            self.image_int, galsim.Deconvolve(psf_int)
+        self._image_int_nopsf = galsim.Convolve(
+            self._image_int, galsim.Deconvolve(psf_int)
         )
 
         # the round gaussian reconvolution target, dilated by 1 + 2*step; the
         # same target for every type (only the galaxy is sheared)
-        self.target_psf = target_psf(psf_int, flux=self.psf_flux)
-        self.target_psf = self.target_psf.dilate(1.0 + 2.0 * self.step)
+        self._target_psf = target_psf(psf_int, flux=self.psf_flux)
+        self._target_psf = self._target_psf.dilate(1.0 + 2.0 * self._step)
 
         # the padded draw grid (galsim's own drawFFT size unless shared via Np)
-        self.Np = self._galsim_kpad_size() if Np is None else int(Np)
-        self._lo = (self.Np - self.N) // 2
+        self._Np = self._galsim_kpad_size() if Np is None else int(Np)
+        self._lo = (self._Np - self._N) // 2
 
         # numpy-fft-matched k grid on the Np draw grid: dk = 2*pi/Np, plus the
         # ifftshift reorder and the (Np-1)/2 centering phase ramp that match
         # galsim's drawKImage to fft2(drawImage(method='no_pixel'))
-        self._dk = 2.0 * np.pi / self.Np
-        k1 = 2.0 * np.pi * np.fft.fftfreq(self.Np)
+        self._dk = 2.0 * np.pi / self._Np
+        k1 = 2.0 * np.pi * np.fft.fftfreq(self._Np)
         kxg, kyg = np.meshgrid(k1, k1)
-        self._phase = np.exp(-1j * (kxg + kyg) * (self.Np - 1.0) / 2.0)
-
-    def _galsim_kpad_size(self):
-        """
-        galsim's own FFT draw size for this metacal object, replicating
-        ``GSObject.drawFFT_makeKImage``: the good image size from stepk, at
-        least the stamp size, rounded to a good FFT size, floored at
-        minimum_fft_size.  Set by the image size (stepk), so same-N images
-        share it.
-        """
-        prof = self.wcs.profileToImage(
-            galsim.Convolve([self.image_int_nopsf, self.target_psf])
-        )
-        n = max(prof.getGoodImageSize(1.0), self.N)
-        n = galsim.Image.good_fft_size(n)
-        return int(max(n, prof.gsparams.minimum_fft_size))
-
-    def _khat(self, world_profile):
-        """
-        the matched-grid k-array of a world-frame profile: to image coords,
-        drawKImage at dk, reorder to numpy fft layout, re-center
-        """
-        image_profile = self.wcs.profileToImage(world_profile)
-        kim = image_profile.drawKImage(nx=self.Np, ny=self.Np, scale=self._dk)
-        return np.fft.ifftshift(kim.array) * self._phase
-
-    def _metacal_field(self, t):
-        """
-        the metacal'd (deconv-sheared-reconv) world profile for type t, with
-        the sky rotate-back (-rotation) applied so the field is in the final
-        image-metacal frame ready to add
-        """
-        sh = _shear_kwargs(t, self.step)
-        nopsf = (
-            self.image_int_nopsf
-            if sh is None
-            else self.image_int_nopsf.shear(**sh)
-        )
-        field = galsim.Convolve([nopsf, self.target_psf])
-        if self.rotation is not None:
-            field = field.rotate(-self.rotation)
-        return field
-
-    def _crop(self, arr):
-        """
-        crop the center N x N out of an Np x Np draw
-        """
-        lo = self._lo
-        return arr[lo : lo + self.N, lo : lo + self.N]
-
-    def get_khats(self):
-        """
-        dict type -> Np x Np metacal'd k-array (numpy fft layout); cached
-        """
-        if self._khats is None:
-            self._khats = {
-                t: self._khat(self._metacal_field(t)) for t in self.types
-            }
-        return self._khats
+        self._phase = np.exp(-1j * (kxg + kyg) * (self._Np - 1.0) / 2.0)
 
     def get_images(self):
         """
@@ -260,17 +202,83 @@ class Metacal:
         kh = self.get_khats()
         return {
             t: self._crop(np.fft.ifft2(kh[t] * filters[t]).real)
-            for t in self.types
+            for t in self._types
         }
 
-    def target_psf_image(self):
+    def get_target_psf_image(self):
         """the round dilated-gaussian reconvolution psf image (for the fit);
         drawn the standard way (it is smooth, no aliasing concern)"""
 
-        ny, nx = self.psf_image.shape
-        return self.target_psf.drawImage(
-            nx=nx, ny=ny, wcs=self.wcs, method='no_pixel'
+        ny, nx = self._psf_image.shape
+        return self._target_psf.drawImage(
+            nx=nx, ny=ny, wcs=self._wcs, method='no_pixel'
         ).array
+
+    def get_khats(self):
+        """
+        dict type -> Np x Np metacal'd k-array (numpy fft layout); cached
+        """
+        if self._khats is None:
+            self._khats = {
+                t: self._khat(self._metacal_field(t)) for t in self._types
+            }
+        return self._khats
+
+    @property
+    def Np(self):
+        return self._Np
+
+    def _galsim_kpad_size(self):
+        """
+        galsim's own FFT draw size for this metacal object, replicating
+        ``GSObject.drawFFT_makeKImage``: the good image size from stepk, at
+        least the stamp size, rounded to a good FFT size, floored at
+        minimum_fft_size.  Set by the image size (stepk), so same-N images
+        share it.
+        """
+        prof = self._wcs.profileToImage(
+            galsim.Convolve([self._image_int_nopsf, self._target_psf])
+        )
+        n = max(prof.getGoodImageSize(1.0), self._N)
+        n = galsim.Image.good_fft_size(n)
+        return int(max(n, prof.gsparams.minimum_fft_size))
+
+    def _khat(self, world_profile):
+        """
+        the matched-grid k-array of a world-frame profile: to image coords,
+        drawKImage at dk, reorder to numpy fft layout, re-center
+        """
+        image_profile = self._wcs.profileToImage(world_profile)
+        kim = image_profile.drawKImage(
+            nx=self._Np,
+            ny=self._Np,
+            scale=self._dk,
+        )
+        return np.fft.ifftshift(kim.array) * self._phase
+
+    def _metacal_field(self, t):
+        """
+        the metacal'd (deconv-sheared-reconv) world profile for type t, with
+        the sky rotate-back (-rotation) applied so the field is in the final
+        image-metacal frame ready to add
+        """
+        sh = _shear_kwargs(t, self._step)
+        nopsf = (
+            self._image_int_nopsf
+            if sh is None
+            else self._image_int_nopsf.shear(**sh)
+        )
+        field = galsim.Convolve([nopsf, self._target_psf])
+        if self._rotation is not None:
+            field = field.rotate(-self._rotation)
+        return field
+
+    def _crop(self, arr):
+        """
+        crop the center N x N out of an Np x Np draw
+        """
+        lo = self._lo
+        return arr[lo : lo + self._N, lo : lo + self._N]
 
 
 def _metacal_with_noise_correction(
@@ -347,7 +355,7 @@ def _metacal_with_noise_correction(
     }
     return MetacalResult(
         images=odict,
-        psf_image=mcal.target_psf_image(),
+        psf_image=mcal.get_target_psf_image(),
         noise_var_factor=_predict_noise_var_factor(pts, pts_rot, hfilt, types),
     )
 
