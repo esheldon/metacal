@@ -431,7 +431,8 @@ def _make_hybrid_filters_kspace(
     Parameters
     ----------
     pts, pts_rot: dict type -> (Np, Np) array
-        the un-rotated and sky-rotated metacal transfers (_delta_transfer_kspace
+        the un-rotated and sky-rotated metacal transfers
+        (_delta_transfer_kspace
         with rotation None and 90*galsim.degrees)
     npix: int
         the grid size Np
