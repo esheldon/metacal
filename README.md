@@ -30,12 +30,12 @@ Examples
 
 ```python
 import galsim
-from metacal import metacal
+import metacal
 
 # send noise_image= to apply the noise correction.  Noise can
-# be correlated and non stationary. Send noise_image=None to not
-# apply a correction
-res = metacal(
+# be correlated and non stationary. Send noise_image=None to
+# apply no correction
+res = metacal.metacal_image(
     image=image,
     psf_image=psf_image,
     noise_image=noise_image,
@@ -46,10 +46,9 @@ res = metacal(
 It can also work on an ngmix Observation (although ngmix is not a requirement).
 ```python
 import galsim
-from metacal import metacal_obs
 
 # if the obs has a .noise attribute, the noise correction is applied
-res = metacal_obs(obs)
+res = metacal.metacal_obs(obs)
 ```
 
 ## Dependencies

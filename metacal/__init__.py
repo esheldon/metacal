@@ -2,13 +2,13 @@
 
 __version__ = '0.1.0'
 
-from . import metacal
-from .metacal import metacal
-from . import metacal_result
-from .metacal_result import MetacalResult
-
+from . import metacalibration
+from .metacalibration import metacal_image
 from .  import obs
 from .obs import metacal_obs
+
+from . import metacal_result
+from .metacal_result import MetacalResult
 
 from . import deficit
 from . import wcs

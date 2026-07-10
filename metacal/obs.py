@@ -1,4 +1,4 @@
-from .metacal import metacal
+from .metacalibration import metacal_image
 from .defaults import DEFAULT_TYPES
 
 
@@ -39,7 +39,7 @@ def metacal_obs(
 
     wcs = obs.jacobian.get_galsim_wcs()
 
-    res = metacal(
+    res = metacal_image(
         image=obs.image,
         psf_image=obs.psf.image,
         wcs=wcs,

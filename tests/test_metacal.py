@@ -6,7 +6,7 @@ import numpy as np
 import galsim
 import pytest
 
-from metacal.metacal import (
+from metacal.metacalibration import (
     Metacal,
     delta_transfer_kspace,
     make_hybrid_filters_kspace,

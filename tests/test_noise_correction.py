@@ -6,8 +6,8 @@ import numpy as np
 import galsim
 import pytest
 
-from metacal import metacal
-from metacal.metacal import (
+from metacal import metacal_image
+from metacal.metacalibration import (
     Metacal,
     delta_transfer_kspace,
     make_hybrid_filters_kspace,
@@ -57,7 +57,7 @@ def test_metacal_hybrid_runs(wcs_kw):
     diagonal and a distorted wcs, including the full 5-type set
     """
     psf_image, image, noise, wcs = _scene(**wcs_kw)
-    res = metacal(
+    res = metacal_image(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
@@ -77,13 +77,13 @@ def test_wcs_can_be_a_matrix():
     """
     psf_image, image, noise, wcs = _scene(theta=10.0, g1=0.01, g2=-0.005)
     M = distortion_matrix(SCALE, theta=10 * galsim.degrees, g1=0.01, g2=-0.005)
-    a = metacal(
+    a = metacal_image(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
         wcs=wcs,
     )
-    b = metacal(
+    b = metacal_image(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
@@ -96,10 +96,10 @@ def test_wcs_can_be_a_matrix():
 
 def test_metacal_convenience():
     """
-    the plain metacal() convenience equals Metacal(...).get_images()
+    the plain metacal_image() convenience equals Metacal(...).get_images()
     """
     psf_image, image, noise, wcs = _scene()
-    a = metacal(
+    a = metacal_image(
         image=image,
         psf_image=psf_image,
         noise_image=None,
@@ -112,13 +112,13 @@ def test_metacal_convenience():
 
 def test_hybrid_adds_only_the_filtered_deficit():
     psf_image, image, noise, wcs = _scene()
-    plain = metacal(
+    plain = metacal_image(
         image=image,
         psf_image=psf_image,
         noise_image=None,
         wcs=wcs,
     )
-    hyb = metacal(
+    hyb = metacal_image(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
@@ -140,7 +140,7 @@ def test_noise_var_factor_is_one_without_correction():
     plain metacal applies no correction -> the factor is exactly 1.0
     """
     psf_image, image, noise, wcs = _scene()
-    assert metacal(
+    assert metacal_image(
         image=image,
         psf_image=psf_image,
         noise_image=None,
@@ -155,13 +155,13 @@ def test_noise_var_factor_grows_with_ellipticity():
     """
     psf_r, im_r, nz_r, wcs = _scene(psf_g1=0.0)
     psf_e, im_e, nz_e, wcs = _scene(psf_g1=0.10)
-    fac_round = metacal(
+    fac_round = metacal_image(
         image=im_r,
         psf_image=psf_r,
         noise_image=nz_r,
         wcs=wcs,
     ).noise_var_factor
-    fac_ell = metacal(
+    fac_ell = metacal_image(
         image=im_e,
         psf_image=psf_e,
         noise_image=nz_e,
@@ -177,7 +177,7 @@ def test_noise_var_factor_predicts_variance_ratio():
     to the plain metacal'd noise variance over white-noise realizations
     """
     psf_image, image, noise, wcs = _scene(psf_g1=0.08)
-    pred = metacal(
+    pred = metacal_image(
         image=image,
         psf_image=psf_image,
         noise_image=noise,

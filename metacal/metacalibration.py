@@ -13,7 +13,7 @@ from .metacal_result import MetacalResult
 from .defaults import LANCZOS, DEFAULT_TYPES
 
 
-def metacal(
+def metacal_image(
     image,
     psf_image,
     noise_image,
@@ -73,10 +73,10 @@ def metacal(
 
 class Metacal:
     """
-    Metacal a single image.
+    Metacalibrate a single image.
 
-    You usually want to use the convenience function metacal().
-    Only use this class if you know what you are doing.
+    You usually want to use one of the convenience functions metacal_image() or
+    metacal_obs().  Only use this class if you know what you are doing.
 
     Parameters
     ----------
