@@ -2,7 +2,7 @@ from .metacalibration import metacal_modecorr
 from .defaults import DEFAULT_TYPES
 
 
-def metacal_obs_modecorr(
+def metacal_modecorr_obs(
     obs,
     target_psf,
     rng,
