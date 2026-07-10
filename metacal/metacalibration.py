@@ -72,11 +72,11 @@ def metacal_image(
         )
     else:
         return _metacal_with_noise_correction(
-            image,
-            psf_image,
-            wcs,
-            target_psf=target_psf,
+            image=image,
+            psf_image=psf_image,
             noise_image=noise_image,
+            wcs=wcs,
+            target_psf=target_psf,
             step=step,
             types=types,
         )
@@ -276,9 +276,9 @@ class Metacal:
 def _metacal_with_noise_correction(
     image,
     psf_image,
+    noise_image,
     wcs,
     target_psf,
-    noise_image=None,
     step=0.01,
     types=DEFAULT_TYPES,
 
