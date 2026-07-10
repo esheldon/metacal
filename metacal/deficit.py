@@ -3,10 +3,10 @@ import numpy as np
 
 def common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
     """
-    Calculate the deficit power
+    Project the transfer function onto harmonic modes.
 
-    Project the transfer function onto modes. To ensure that all types get the
-    same level of noise, the max amplitude and mean is used over types.
+    To ensure that all types get the same level of noise, the max amplitude and
+    mean is used over types.
 
     Parameters
     ----------

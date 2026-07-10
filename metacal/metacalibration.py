@@ -166,8 +166,9 @@ class Metacal:
 
         # the round gaussian reconvolution target, dilated by 1 + 2*step; the
         # same target for every type (only the galaxy is sheared)
-        self._target_psf = target_psf(psf_int, flux=self.psf_flux)
-        self._target_psf = self._target_psf.dilate(1.0 + 2.0 * self._step)
+        self._target_psf = target_psf(psf_int, flux=self.psf_flux).dilate(
+            1.0 + 2.0 * self._step
+        )
 
         # the padded draw grid (galsim's own drawFFT size unless shared via Np)
         self._Np = self._galsim_kpad_size() if Np is None else int(Np)
@@ -183,8 +184,11 @@ class Metacal:
 
     def get_images(self):
         """
-        dict type -> real metacal'd image, cropped to the center N x N (one
-        ifft2 per type of the Np-grid get_khats)
+        Returns
+        -------
+        dict:
+            The real metacal'd images, cropped to the center N x N (one
+            ifft2 per type of the Np-grid get_khats)
         """
         return {
             t: self._crop(np.fft.ifft2(k).real)
@@ -193,11 +197,14 @@ class Metacal:
 
     def get_filtered_images(self, filters):
         """
-        dict type -> real image of ifft2(khat_t * filters[t]), cropped to N;
-        ``filters`` are Np x Np k-space filters (the hybrid H_t).  The filter
-        is applied in k on the padded grid; no second fft; so the
-        de-aliased correction field stays in the same frame as the transfer
-        that built it.
+        Returns
+        -------
+        dict:
+            real image of ifft2(khat_t * filters[t]), cropped to N; ``filters``
+            are Np x Np k-space filters (the hybrid H_t).  The filter is
+            applied in k on the padded grid; no second fft; so the de-aliased
+            correction field stays in the same frame as the transfer that built
+            it.
         """
         kh = self.get_khats()
         return {
@@ -206,8 +213,14 @@ class Metacal:
         }
 
     def get_target_psf_image(self):
-        """the round dilated-gaussian reconvolution psf image (for the fit);
-        drawn the standard way (it is smooth, no aliasing concern)"""
+        """
+        Get an image of the round dilated-gaussian reconvolution psf.
+
+        Returns
+        -------
+        array:
+            The image array
+        """
 
         ny, nx = self._psf_image.shape
         return self._target_psf.drawImage(

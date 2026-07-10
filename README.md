@@ -42,6 +42,11 @@ res = metacal.metacal_image(
     wcs=wcs,
     target_psf=metacal.AZGauss(),
 )
+
+# res is a MetacalResult, which is a dict-like with images
+# for each metacal tyupe requested.  It also has attributes
+# .psf_image and .noise_var_vactor, the factor by which the
+# noise^2 was increased by the added noise
 ```
 
 It can also work on an ngmix Observation (although ngmix is not a requirement).
