@@ -292,7 +292,7 @@ def _metacal_with_noise_correction(
     wcs, jmat = _wcs_and_matrix(wcs)
 
     # one shared padded grid for the transfer, the galaxy and the noise
-    pts, npix = delta_transfer_kspace(
+    pts, npix = _delta_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
@@ -300,7 +300,7 @@ def _metacal_with_noise_correction(
         step=step,
         types=types,
     )
-    pts_rot, _ = delta_transfer_kspace(
+    pts_rot, _ = _delta_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
@@ -312,7 +312,7 @@ def _metacal_with_noise_correction(
     )
 
     scale, _, _, _ = wcs.getDecomposition()
-    hfilt = make_hybrid_filters_kspace(
+    hfilt = _make_hybrid_filters_kspace(
         pts, pts_rot, npix, scale, types, jmat=jmat
     )
 
@@ -378,7 +378,7 @@ def _predict_noise_var_factor(pts, pts_rot, hfilt, types):
     return 1.0 + v_added / v_plain
 
 
-def delta_transfer_kspace(
+def _delta_transfer_kspace(
     psf_image, wcs, target_psf, dim, step, types, Np=None, rotation=None
 ):
     """
@@ -408,7 +408,7 @@ def delta_transfer_kspace(
     return {t: np.abs(khats[t]) ** 2 for t in types}, km.Np
 
 
-def make_hybrid_filters_kspace(
+def _make_hybrid_filters_kspace(
     pts, pts_rot, npix, scale, types, ktol=1e-4, jmat=None
 ):
     """
@@ -431,7 +431,7 @@ def make_hybrid_filters_kspace(
     Parameters
     ----------
     pts, pts_rot: dict type -> (Np, Np) array
-        the un-rotated and sky-rotated metacal transfers (delta_transfer_kspace
+        the un-rotated and sky-rotated metacal transfers (_delta_transfer_kspace
         with rotation None and 90*galsim.degrees)
     npix: int
         the grid size Np

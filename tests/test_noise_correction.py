@@ -10,8 +10,8 @@ from metacal import metacal_image
 from metacal import AZGauss
 from metacal.metacalibration import (
     Metacal,
-    delta_transfer_kspace,
-    make_hybrid_filters_kspace,
+    _delta_transfer_kspace,
+    _make_hybrid_filters_kspace,
 )
 from metacal.wcs import distortion_matrix, galsim_wcs
 
@@ -212,7 +212,7 @@ def test_noise_var_factor_predicts_variance_ratio():
     # the shared transfers and hybrid filter (the diagonal scene needs no
     # sky-angle projection, so jmat defaults to the pixel frame)
     types = ['noshear']
-    pts, Np = delta_transfer_kspace(
+    pts, Np = _delta_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
@@ -220,7 +220,7 @@ def test_noise_var_factor_predicts_variance_ratio():
         step=STEP,
         types=types,
     )
-    pts_rot, _ = delta_transfer_kspace(
+    pts_rot, _ = _delta_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
@@ -230,7 +230,7 @@ def test_noise_var_factor_predicts_variance_ratio():
         Np=Np,
         rotation=90 * galsim.degrees
     )
-    hfilt = make_hybrid_filters_kspace(pts, pts_rot, Np, SCALE, types)
+    hfilt = _make_hybrid_filters_kspace(pts, pts_rot, Np, SCALE, types)
 
     # E[var(plain + correction)] / E[var(plain)] in the central region
     b = 10
