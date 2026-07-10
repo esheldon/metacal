@@ -8,8 +8,8 @@ import pytest
 
 from metacal import metacal_image, metacal_modecorr
 from metacal import AZGauss
-from metacal.metacalibration import (
-    Metacal,
+from metacal.metacalibration import Metacal
+from metacal.metacalibration_modecorr import (
     _impulse_transfer_kspace,
     _make_hybrid_filters_kspace,
 )

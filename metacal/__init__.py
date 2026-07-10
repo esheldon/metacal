@@ -3,7 +3,11 @@
 __version__ = '0.1.0'
 
 from . import metacalibration
-from .metacalibration import metacal_image, metacal_modecorr
+from .metacalibration import metacal_image
+
+from . import metacalibration_modecorr
+from .metacalibration_modecorr import  metacal_modecorr
+
 from .  import obs
 from .obs import metacal_modecorr_obs
 

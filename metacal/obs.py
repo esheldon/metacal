@@ -1,4 +1,4 @@
-from .metacalibration import metacal_modecorr
+from .metacalibration_modecorr import metacal_modecorr
 from .defaults import DEFAULT_TYPES
 
 
