@@ -7,7 +7,6 @@ import galsim
 
 from .metacalibration import Metacal
 from .deficit import common_harmonic_deficits
-from .wcs import galsim_wcs
 from .metacal_result import MetacalResult
 from .defaults import DEFAULT_TYPES
 from ._util import _wcs_and_matrix
