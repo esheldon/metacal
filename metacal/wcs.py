@@ -3,7 +3,7 @@ local WCS helpers.
 """
 
 
-def distortion_matrix(scale, theta=None, g1=0.0, g2=0.0):
+def distortion_matrix(scale, theta, g1, g2):
     """
     Create a distortion matrix from scale, angle, shear
 
