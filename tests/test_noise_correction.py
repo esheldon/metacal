@@ -230,7 +230,7 @@ def test_noise_var_factor_predicts_variance_ratio():
     # the shared transfers and fusion filter (the diagonal scene needs no
     # sky-angle projection, so jmat defaults to the pixel frame)
     types = ['noshear']
-    pts, Np = _impulse_transfer_kspace(
+    pts, npix = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
@@ -243,10 +243,10 @@ def test_noise_var_factor_predicts_variance_ratio():
         target_psf=target_psf,
         dim=DIM,
         types=types,
-        Np=Np,
+        npix=npix,
         rotation=90 * galsim.degrees
     )
-    hfilt = _make_fusion_filters_kspace(pts, pts_rot, Np, SCALE, types)
+    hfilt = _make_fusion_filters_kspace(pts, pts_rot, npix, SCALE, types)
 
     # E[var(plain + correction)] / E[var(plain)] in the central region
     b = 10
@@ -263,7 +263,7 @@ def test_noise_var_factor_predicts_variance_ratio():
             wcs=wcs,
             target_psf=target_psf,
             types=types,
-            Np=Np
+            npix=npix
         ).get_images()['noshear']
         corr = Metacal(
             image=n2,
@@ -271,7 +271,7 @@ def test_noise_var_factor_predicts_variance_ratio():
             wcs=wcs,
             target_psf=target_psf,
             types=types,
-            Np=Np,
+            npix=npix,
             rotation=90 * galsim.degrees,
         ).get_filtered_images(hfilt)['noshear']
         vplain += plain[sl, sl].var()

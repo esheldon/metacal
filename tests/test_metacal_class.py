@@ -28,7 +28,9 @@ def _build(theta):
             {'scale': SCALE},
         )
     else:
-        jacmat = distortion_matrix(SCALE, theta=theta * galsim.degrees)
+        jacmat = distortion_matrix(
+            SCALE, theta=theta * galsim.degrees, g1=0, g2=0,
+        )
         wcs = galsim_wcs(jacmat)
         dkw = {'wcs': wcs}
 
@@ -48,20 +50,20 @@ def _build(theta):
 @pytest.mark.parametrize('theta', [None, 45.0])
 def test_delta_transfer_padded(theta):
     """
-    the transfer is on galsim's padded draw grid Np (>= the stamp), finite
+    the transfer is on galsim's padded draw grid npix (>= the stamp), finite
     and non-negative
     """
     psf_image, gal_im, wcs = _build(theta)
-    pts, Np = _impulse_transfer_kspace(
+    pts, npix = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
         dim=DIM,
         types=TYPES,
     )
-    assert Np >= DIM and Np % 2 == 0
+    assert npix >= DIM and npix % 2 == 0
     for t in TYPES:
-        assert pts[t].shape == (Np, Np)
+        assert pts[t].shape == (npix, npix)
         assert np.all(np.isfinite(pts[t])) and pts[t].min() >= 0.0
 
 
@@ -123,7 +125,7 @@ def test_sky_rot_conformal_matches_pixel(theta):
     reproduces the pixel np.rot90 correction field to interpolation precision
     """
     psf_image, gal_im, wcs = _build(theta)
-    _, NP = _impulse_transfer_kspace(
+    _, npix = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -139,7 +141,7 @@ def test_sky_rot_conformal_matches_pixel(theta):
                 wcs=wcs,
                 target_psf=AZGauss(),
                 types=TYPES,
-                Np=NP
+                npix=npix
             ).get_images()[t],
             3,
         )
@@ -151,7 +153,7 @@ def test_sky_rot_conformal_matches_pixel(theta):
         wcs=wcs,
         target_psf=AZGauss(),
         types=TYPES,
-        Np=NP,
+        npix=npix,
         rotation=90 * galsim.degrees,
     ).get_images()
     for t in TYPES:
@@ -163,14 +165,14 @@ def test_sky_rot_diverges_under_distortion():
     under a NON-conformal wcs the sky rotation must DIFFER materially from the
     pixel np.rot90 (else it could not fix the additive c)
     """
-    M = distortion_matrix(SCALE, g1=0.10, g2=0.05)
+    M = distortion_matrix(SCALE, theta=None, g1=0.10, g2=0.05)
     wcs = galsim_wcs(M)
     psf_image = (
         galsim.Moffat(beta=2.5, fwhm=0.9)
         .drawImage(nx=DIM, ny=DIM, wcs=wcs)
         .array
     )
-    _, NP = _impulse_transfer_kspace(
+    _, npix = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -185,7 +187,7 @@ def test_sky_rot_diverges_under_distortion():
             wcs=wcs,
             target_psf=AZGauss(),
             types=TYPES,
-            Np=NP
+            npix=npix
         ).get_images()['noshear'],
         3,
     )
@@ -195,7 +197,7 @@ def test_sky_rot_diverges_under_distortion():
         wcs=wcs,
         target_psf=AZGauss(),
         types=TYPES,
-        Np=NP,
+        npix=npix,
         rotation=90 * galsim.degrees,
     ).get_images()['noshear']
     assert np.abs(sky - pix).max() / np.abs(pix).max() > 0.05
@@ -203,11 +205,11 @@ def test_sky_rot_diverges_under_distortion():
 
 def test_kspace_filters_finite_and_capped():
     """
-    the fusion filters (padded Np grid) are real, finite and capped at 1
+    the fusion filters (padded npix grid) are real, finite and capped at 1
     """
     psf_image, gal_im, wcs = _build(45.0)
-    jmat = distortion_matrix(SCALE, theta=45 * galsim.degrees)
-    pts, Np = _impulse_transfer_kspace(
+    jmat = distortion_matrix(SCALE, theta=45 * galsim.degrees, g1=0, g2=0)
+    pts, npix = _impulse_transfer_kspace(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -220,11 +222,13 @@ def test_kspace_filters_finite_and_capped():
         target_psf=AZGauss(),
         dim=DIM,
         types=TYPES,
-        Np=Np,
+        npix=npix,
         rotation=90 * galsim.degrees
     )
-    G = _make_fusion_filters_kspace(pts, pts_rot, Np, SCALE, TYPES, jmat=jmat)
+    G = _make_fusion_filters_kspace(
+        pts, pts_rot, npix, SCALE, TYPES, jmat=jmat,
+    )
     for t in TYPES:
-        assert G[t].shape == (Np, Np)
+        assert G[t].shape == (npix, npix)
         assert np.all(np.isfinite(G[t]))
         assert G[t].min() >= 0.0 and G[t].max() <= 1.0 + 1e-12

@@ -25,7 +25,7 @@ def _build(theta):
             {'scale': SCALE},
         )
     else:
-        jacmat = distortion_matrix(SCALE, theta=theta * galsim.degrees)
+        jacmat = distortion_matrix(SCALE, theta=theta * galsim.degrees, g1=0, g2=0)
         wcs = galsim_wcs(jacmat)
         dkw = {'wcs': wcs}
 
