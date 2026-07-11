@@ -76,7 +76,7 @@ def metacal_noise_correct(
         wcs=wcs,
         target_psf=target_psf,
         types=types,
-        Np=npix,
+        npix=npix,
     )
     mcal_images = mcal.get_images()
 
@@ -88,7 +88,7 @@ def metacal_noise_correct(
         wcs,
         target_psf=target_psf,
         types=types,
-        Np=npix,
+        npix=npix,
         rotation=90 * galsim.degrees,
     )
     mcal_noise_images = mcal_noise.get_filtered_images(hfilt)
