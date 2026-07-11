@@ -7,7 +7,6 @@ import numpy as np
 import galsim
 
 from .metacalibration import Metacal
-from .defaults import DEFAULT_TYPES
 from ._util import _wcs_and_matrix
 
 
@@ -45,7 +44,7 @@ class FusionFilter:
         wcs,
         target_psf,
         dim,
-        types=DEFAULT_TYPES,
+        types,
     ):
         wcs, jmat = _wcs_and_matrix(wcs)
 

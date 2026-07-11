@@ -16,7 +16,7 @@ from metacal.wcs import distortion_matrix, galsim_wcs
 
 DIM = 48
 SCALE = 0.2
-TYPES = ['noshear', '1p', '1m']
+TYPES = ('noshear', '1p', '1m')
 
 
 def _build(theta):

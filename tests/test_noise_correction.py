@@ -16,7 +16,7 @@ from metacal.wcs import distortion_matrix, galsim_wcs
 
 DIM = 48
 SCALE = 0.2
-TYPES = ['noshear', '1p', '1m', '2p', '2m']
+TYPES = ('noshear', '1p', '1m', '2p', '2m')
 
 
 def _scene(theta=0.0, g1=0.0, g2=0.0, psf_g1=0.03):
@@ -89,6 +89,7 @@ def test_wcs_can_be_a_matrix():
         noise_filter=noise_filter,
         wcs=wcs,
         target_psf=metacal.AZGauss(),
+        types=TYPES,
     )
 
     b = metacal.metacal_noise_correct(
@@ -98,6 +99,7 @@ def test_wcs_can_be_a_matrix():
         noise_filter=noise_filter,
         wcs=M,
         target_psf=metacal.AZGauss(),
+        types=TYPES,
     )
 
     for t in a:
@@ -115,12 +117,14 @@ def test_metacal_convenience():
         psf_image=psf_image,
         wcs=wcs,
         target_psf=metacal.AZGauss(),
+        types=TYPES,
     )
     b = Metacal(
         image=image,
         psf_image=psf_image,
         wcs=wcs,
         target_psf=metacal.AZGauss(),
+        types=TYPES,
     ).get_images()
     for t in a:
         assert np.array_equal(a[t], b[t])
@@ -136,6 +140,7 @@ def test_fusion_adds_only_the_filtered_deficit():
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
+        types=TYPES,
     )
 
     hyb = metacal.metacal_noise_correct(
@@ -145,6 +150,7 @@ def test_fusion_adds_only_the_filtered_deficit():
         noise_filter=metacal.FusionFilter(),
         wcs=wcs,
         target_psf=target_psf,
+        types=TYPES,
     )
 
     # the full counter-rotated metacal'd noise fixnoise would add
@@ -153,6 +159,7 @@ def test_fusion_adds_only_the_filtered_deficit():
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
+        types=TYPES,
         rotation=90 * galsim.degrees
     ).get_images()
 
@@ -173,6 +180,7 @@ def test_noise_var_factor_is_one_without_correction():
         psf_image=psf_image,
         wcs=wcs,
         target_psf=metacal.AZGauss(),
+        types=TYPES,
     ).noise_var_factor == 1.0
 
 
@@ -195,6 +203,7 @@ def test_noise_var_factor_grows_with_ellipticity():
         noise_filter=noise_filter,
         wcs=wcs,
         target_psf=target_psf,
+        types=TYPES,
     ).noise_var_factor
 
     fac_ell = metacal.metacal_noise_correct(
@@ -204,6 +213,7 @@ def test_noise_var_factor_grows_with_ellipticity():
         noise_filter=noise_filter,
         wcs=wcs,
         target_psf=target_psf,
+        types=TYPES,
     ).noise_var_factor
 
     assert 1.0 < fac_round < 1.15
@@ -225,6 +235,7 @@ def test_noise_var_factor_predicts_variance_ratio():
         noise_filter=metacal.FusionFilter(),
         wcs=wcs,
         target_psf=target_psf,
+        types=TYPES,
     ).noise_var_factor
 
     # the shared transfers and fusion filter (the diagonal scene needs no

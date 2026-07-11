@@ -1,5 +1,4 @@
 from .noise_correct import metacal_noise_correct
-from .defaults import DEFAULT_TYPES
 
 
 def metacal_obs(
@@ -7,7 +6,7 @@ def metacal_obs(
     noise_filter,
     target_psf,
     rng,
-    types=DEFAULT_TYPES,
+    types,
 ):
     """
     Metacal an ngmix.Observation.  If a noise image is present (obs.has_noise()

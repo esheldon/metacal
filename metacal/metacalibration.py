@@ -6,7 +6,6 @@ import numpy as np
 import galsim
 
 from .result import MetacalResult
-from .defaults import DEFAULT_TYPES
 from ._util import _wcs_and_matrix
 
 LANCZOS = 'lanczos15'
@@ -18,7 +17,7 @@ def metacal_image(
     psf_image,
     wcs,
     target_psf,
-    types=DEFAULT_TYPES,
+    types,
 ):
     """
     metacal an image
@@ -105,7 +104,7 @@ class Metacal:
         psf_image,
         wcs,
         target_psf,
-        types=DEFAULT_TYPES,
+        types,
         npix=None,
         rotation=None,
     ):

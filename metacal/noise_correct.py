@@ -1,6 +1,3 @@
-from .defaults import DEFAULT_TYPES
-
-
 def metacal_noise_correct(
     image,
     psf_image,
@@ -8,7 +5,7 @@ def metacal_noise_correct(
     noise_filter,
     wcs,
     target_psf,
-    types=DEFAULT_TYPES,
+    types,
 ):
     """
     metacal an image with spin-2 mode correction of the noise
