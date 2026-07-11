@@ -5,7 +5,7 @@ Metacalibration
 import numpy as np
 import galsim
 
-from .metacal_result import MetacalResult
+from .result import MetacalResult
 from .defaults import LANCZOS, DEFAULT_TYPES
 from ._util import _wcs_and_matrix
 

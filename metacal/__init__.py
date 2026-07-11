@@ -14,8 +14,8 @@ from .fusion_filter import FusionFilter
 from .  import obs
 from .obs import metacal_obs
 
-from . import metacal_result
-from .metacal_result import MetacalResult
+from . import result
+from .result import MetacalResult
 
 from . import wcs
 from . import azgauss_target_psf

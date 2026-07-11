@@ -53,7 +53,7 @@ def metacal_noise_correct(
     import galsim
     from ._util import _wcs_and_matrix
     from .metacalibration import Metacal
-    from .metacal_result import MetacalResult
+    from .result import MetacalResult
 
     if image.shape != noise_image.shape:
         raise ValueError(
