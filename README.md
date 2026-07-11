@@ -2,11 +2,11 @@
 
 Metacalibration weak lensing shear calibration.
 
-This package supercedes the metacal code that was part of ngmix.
+This package supercedes the metacal code that was part of `ngmix`.
 
 We provide the "fusion" noise correction that increases the noise by only a few
 percent for typical PSFs, as compared to the old correction that increases it
-by sqrt(2) in all cases.  We also provide the "azgauss" psf target.
+by `sqrt(2)` in all cases.  We also provide the "azgauss" psf target.
 
 Examples
 ---------
@@ -29,16 +29,15 @@ res = metacal.metacal_image(
 ```
 
 `metacal_image` implements the basic metcalibration operations.  No noise
-correction is applied.  The user can provice their own `target_psf`, either as
-a callable or a `galsim.GSObject`.  We provide the `AZGauss` method.
-The `wcs` is a `local/Jacobian galsim WCS`.
+correction is applied.  The `target_psf` is specified by the user, either as a
+callable or a `galsim.GSObject`.  We provide the `AZGauss`.  The `wcs` is a
+`local/Jacobian galsim WCS`.
 
 The returned `res` is a `MetacalResult`, which is a `dict`-like keyed by
-metacal type `('1p', 'noshear', etc)` and each item the corresponding image.
+metacal type `('1p', 'noshear', etc)` with each item the corresponding image.
 The result also has attributes
 - `.psf_image` the final target reconvolution PSF
-- `.noise_var_vactor` the factor by which the `noise^2` was increased by
-  the added noise
+- `.noise_var_vactor` the factor by which the `noise^2` was increased by the added noise
 
 ### Noise Correction
 
@@ -61,10 +60,10 @@ the total noise by a few percent for typical PSFs.
 
 The noise can be correlated and non stationary.
 
-# Processing an ngmix Observation
+# Processing an `ngmix.Observation`
 
-Metacalibration can also be run on an ngmix Observation (although ngmix is not
-a requirement).
+Metacalibration can also be run on an `ngmix.Observation` (although ngmix is not
+a requirement, you can duck type it).
 
 ```python
 import metacal
@@ -76,21 +75,20 @@ res = metacal.metacal_obs(
     rng=rng,
 )
 ```
-Here `res` is a dict holding observations for each requested metacal type.  The
-`Observation` must have a the `.noise` filled for use in corrections.
+The input `Observation` must have a the `.noise` filled for use in corrections.
+Here `res` is a dict holding `Observations` for each requested metacal type.
 
 Why a new package?
 ------------------
 
-The new noise method and reconvolution kernel AZGauss included in this package
-are significantly better than the old defaults from ngmix. But, due to poor
-design choices in ngmix (using a "default keyword" structure for these
-features), there was no easy way to slot them in as the new defaults without
-breaking backwards compatibility.  We decided to make a clean break.
+The new fusion noise method and azgauss reconvolution kernel included in this
+package are significantly better than the old defaults from `ngmix`. But, due
+to poor design choices in `ngmix` (using a "default keyword" structure for
+these features), there is no easy way to slot them in as the new defaults
+without breaking backwards compatibility.  We decided to make a clean break.
 
-This is a complete rewrite of metacal.  This package is designed so that the
-user must explicity send the callable or `galsim.GSObject` that creates the
-target psf.  No default is provided.
+This package is designed so that the user must explicity send the callable or
+`galsim.GSObject` that creates the target psf.  No default is provided.
 
 Similarly, the user must explicitly send the callable that provides the filter
 for the noise used in the noise correction.
