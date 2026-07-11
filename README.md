@@ -1,12 +1,12 @@
 # metacal
 
-Implementation of Metacalibration weak lensing shear calibration.
+Metacalibration weak lensing shear calibration.
 
-This supercedes the metacal code that was part of ngmix.
+This package supercedes the metacal code that was part of ngmix.
 
-It uses a new noise correction that increases the noise by a few percent for
-typical PSFs, as compared to the old correction that increases it by sqrt(2) in
-all cases.
+We provide the "fusion" noise correction that increases the noise by only a few
+percent for typical PSFs, as compared to the old correction that increases it
+by sqrt(2) in all cases.  We also provide the "azgauss" psf target.
 
 Examples
 ---------
@@ -14,7 +14,6 @@ Examples
 ### Process an image without any noise correction applied
 
 ```python
-import galsim
 import metacal
 
 #
@@ -29,9 +28,10 @@ res = metacal.metacal_image(
 )
 ```
 
-`metacal_image` implements the basic metcalibration operations.  no noise
+`metacal_image` implements the basic metcalibration operations.  No noise
 correction is applied.  The user can provice their own `target_psf`, either as
-a callable or a `galsim.GSObject`.  The `wcs` is a `local/Jacobian galsim WCS`.
+a callable or a `galsim.GSObject`.  We provide the `AZGauss` method.
+The `wcs` is a `local/Jacobian galsim WCS`.
 
 The returned `res` is a `MetacalResult`, which is a `dict`-like keyed by
 metacal type `('1p', 'noshear', etc)` and each item the corresponding image.
@@ -67,7 +67,7 @@ Metacalibration can also be run on an ngmix Observation (although ngmix is not
 a requirement).
 
 ```python
-import galsim
+import metacal
 
 res = metacal.metacal_obs(
     obs=obs,
@@ -76,8 +76,8 @@ res = metacal.metacal_obs(
     rng=rng,
 )
 ```
-Here res is a dict holding observations for each requested metacal type.  The
-Observation must have a the `.noise` filled for use in corrections.
+Here `res` is a dict holding observations for each requested metacal type.  The
+`Observation` must have a the `.noise` filled for use in corrections.
 
 Why a new package?
 ------------------
@@ -89,13 +89,11 @@ features), there was no easy way to slot them in as the new defaults without
 breaking backwards compatibility.  We decided to make a clean break.
 
 This is a complete rewrite of metacal.  This package is designed so that the
-user must explicity send the object that creates the target psf (we provide
-AZGauss) or their own galsim.GSObject.  No default is provided.
+user must explicity send the callable or `galsim.GSObject` that creates the
+target psf.  No default is provided.
 
-Simularly, we provide an explicit function that implements metacal with the
-"fusion" noise correction.  If another method is developed, we will provide
-new function rather than change the behavior of the existing one.  And the user
-can create of course create their own.
+Similarly, the user must explicitly send the callable that provides the filter
+for the noise used in the noise correction.
 
 ## Dependencies
 
