@@ -42,25 +42,8 @@ class AZGauss:
     Get a round Gaussian target reconvolution psf
 
     The FWHM of the Gaussian is pinned below the input psf profile at the scale
-    where the psf profile falls to small_kval of its flux
-
-    Parameters
-    ----------
-    small_kval: float, optional
-        Find the k where the psf profile falls to this fraction of flux.
-        Default  3.0e-2
-    smaller_kval: float
-        The target gaussian has this kvalue at that k.
-        Default 9.0e-3
+    where the psf profile falls to SMALL_KVAL of its flux
     """
-    def __init__(
-        self,
-        small_kval=SMALL_KVAL,
-        smaller_kval=SMALLER_KVAL,
-    ):
-
-        self.small_kval = small_kval
-        self.smaller_kval = smaller_kval
 
     def __call__(self, psf, flux):
         """
@@ -81,12 +64,12 @@ class AZGauss:
         k_cross = _get_interpolated_crossing(
             dk=dk,
             prof=prof,
-            thresh=self.small_kval * psf.flux,
+            thresh=SMALL_KVAL * psf.flux,
         )
         ksq_max = k_cross**2
 
-        # exp(-0.5 * ksq_max * sigma_sq) = smaller_kval
-        sigma_sq = -2.0 * np.log(self.smaller_kval) / ksq_max
+        # exp(-0.5 * ksq_max * sigma_sq) = SMALLER_KVAL
+        sigma_sq = -2.0 * np.log(SMALLER_KVAL) / ksq_max
 
         return galsim.Gaussian(sigma=np.sqrt(sigma_sq), flux=flux)
 
