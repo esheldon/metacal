@@ -8,8 +8,8 @@ from .metacalibration import metacal_image
 from . import noise_correct
 from .noise_correct import metacal_noise_correct
 
-from . import metacalibration_modecorr
-from .metacalibration_modecorr import FusionFilter
+from . import fusion_filter
+from .fusion_filter import FusionFilter
 
 from .  import obs
 from .obs import metacal_obs

@@ -1,4 +1,4 @@
-from .metacalibration_modecorr import metacal_fusion
+from .noise_correct import metacal_noise_correct
 from .defaults import DEFAULT_TYPES
 
 
@@ -46,10 +46,11 @@ def metacal_obs(
 
     wcs = obs.jacobian.get_galsim_wcs()
 
-    res = metacal_fusion(
+    res = metacal_noise_correct(
         image=obs.image,
         psf_image=obs.psf.image,
         noise_image=obs.noise,
+        noise_filter=noise_filter,
         wcs=wcs,
         target_psf=target_psf,
         step=step,
