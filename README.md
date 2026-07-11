@@ -25,6 +25,7 @@ res = metacal.metacal_image(
     psf_image=psf_image,
     wcs=wcs,
     target_psf=metacal.AZGauss(),
+    types=('noshear', '1p', '1m', '2p', '2m'),
 )
 ```
 
@@ -50,6 +51,7 @@ res = metacal.metacal_noise_correct(
     noise_filter=metacal.FusionFilter(),
     wcs=wcs,
     target_psf=metacal.AZGauss(),
+    types=('noshear', '1p', '1m', '2p', '2m'),
 )
 ```
 
@@ -72,6 +74,7 @@ res = metacal.metacal_obs(
     obs=obs,
     noise_filter=metacal.FusionFilter(),
     target_psf=metacal.AZGauss(),
+    types=('noshear', '1p', '1m', '2p', '2m'),
     rng=rng,
 )
 ```

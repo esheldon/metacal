@@ -9,7 +9,6 @@ def metacal_noise_correct(
     wcs,
     target_psf,
     types=DEFAULT_TYPES,
-
 ):
     """
     metacal an image with spin-2 mode correction of the noise
