@@ -69,15 +69,16 @@ res = metacal.metacal_modecorr_obs(obs)
 Why a new package?
 ------------------
 
+
 The new noise method and reconvolution kernel AZGauss included in this package
 are significantly better than the old defaults from ngmix. But, due to poor
 design choices in ngmix (using a "default keyword" structure for these
 features), there was no easy way to slot them in as the new defaults without
 breaking backwards compatibility.  We decided to make a clean break.
 
-This package is designed so that the user must explicity send the object that
-creates the target psf (we provide AZGauss) or their own galsim.GSObject.  No
-default is provided.
+This is a complete rewrite of metacal.  This package is designed so that the
+user must explicity send the object that creates the target psf (we provide
+AZGauss) or their own galsim.GSObject.  No default is provided.
 
 Simularly, we provide an explicit function that implements metacal with the
 "modecorr" noise correction.  If another method is developed, we will provide
