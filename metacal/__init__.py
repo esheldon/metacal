@@ -21,4 +21,4 @@ from . import wcs
 from . import azgauss_target_psf
 from .azgauss_target_psf import AZGauss
 from . import defaults
-from .defaults import DEFAULT_TYPES, LANCZOS
+from .defaults import DEFAULT_TYPES
