@@ -17,7 +17,6 @@ from .obs import metacal_obs
 from . import metacal_result
 from .metacal_result import MetacalResult
 
-from . import deficit
 from . import wcs
 from . import azgauss_target_psf
 from .azgauss_target_psf import AZGauss
