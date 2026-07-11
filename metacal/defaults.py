@@ -1,3 +1,1 @@
-LANCZOS = 'lanczos15'
 DEFAULT_TYPES = ('noshear', '1p', '1m', '2p', '2m')
-SHEAR_STEP = 0.01
