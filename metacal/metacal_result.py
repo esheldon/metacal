@@ -15,12 +15,12 @@ class MetacalResult:
         the round reconvolution (target) psf image, common to all types
     noise_var_factor: float
         the factor by which the per-pixel noise variance increased due to the
-        rotated-hybrid noise correction, relative to plain (uncorrected)
-        metacal.  1.0 when no noise correction was applied; ~1.04 for a round
-        psf, rising toward 2.0 (the full fixnoise level) as the psf becomes
-        more elliptical.  The corrected noise lands at a common level across
-        all types, so this is a single number.  Downstream, multiply the noise
-        variance (or divide the weight map) by this factor.
+        noise correction, relative to plain (uncorrected) metacal.  1.0 when no
+        noise correction was applied; ~1.04 for a round psf, rising toward 2.0
+        (the full fixnoise level) as the psf becomes more elliptical.  The
+        corrected noise lands at a common level across all types, so this is a
+        single number.  Downstream, multiply the noise variance (or divide the
+        weight map) by this factor.
     """
 
     def __init__(self, images, psf_image, noise_var_factor):

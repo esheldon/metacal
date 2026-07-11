@@ -1,9 +1,10 @@
-from .metacalibration_modecorr import metacal_modecorr
+from .metacalibration_modecorr import metacal_fusion
 from .defaults import DEFAULT_TYPES
 
 
-def metacal_modecorr_obs(
+def metacal_obs(
     obs,
+    noise_filter,
     target_psf,
     rng,
     step=0.01,
@@ -17,6 +18,9 @@ def metacal_modecorr_obs(
     ----------
     obs: ngmix.Observation
         The ngmix Observation, with image, psf etc.
+    noise_filter: callable
+        A callable that generates the filters. See metacal.FusionFilter
+        for an example
     target_psf: A callable that returns a galsim object or a galsim.GSObject
         This should be a galsim.GSObject or a callable with target_psf(psf=psf,
         flux=flux), with psf a galsim object such as galsim.InterpolatedImage.
@@ -42,7 +46,7 @@ def metacal_modecorr_obs(
 
     wcs = obs.jacobian.get_galsim_wcs()
 
-    res = metacal_modecorr(
+    res = metacal_fusion(
         image=obs.image,
         psf_image=obs.psf.image,
         noise_image=obs.noise,

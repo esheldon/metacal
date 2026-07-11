@@ -13,7 +13,52 @@ from .defaults import DEFAULT_TYPES
 from ._util import _wcs_and_matrix
 
 
-def metacal_modecorr(
+class FusionFilter:
+    def __call__(
+        self,
+        psf_image,
+        wcs,
+        target_psf,
+        dim,
+        types,
+        step=0.01,
+        Np=None,
+        rotation=None,
+    ):
+        wcs, jmat = _wcs_and_matrix(wcs)
+
+        # one shared padded grid for the transfer, the galaxy and the noise
+        pts, npix = _impulse_transfer_kspace(
+            psf_image=psf_image,
+            wcs=wcs,
+            target_psf=target_psf,
+            dim=dim,
+            step=step,
+            types=types,
+        )
+        pts_rot, _ = _impulse_transfer_kspace(
+            psf_image=psf_image,
+            wcs=wcs,
+            target_psf=target_psf,
+            dim=dim,
+            step=step,
+            types=types,
+            Np=npix,
+            rotation=90 * galsim.degrees,
+        )
+
+        scale, _, _, _ = wcs.getDecomposition()
+        hfilt = _make_fusion_filters_kspace(
+            pts, pts_rot, npix, scale, types, jmat=jmat
+        )
+        noise_var_factor = _predict_noise_var_factor(
+            pts=pts, pts_rot=pts_rot, hfilt=hfilt, types=types,
+        )
+
+        return hfilt, noise_var_factor
+
+
+def metacal_fusion(
     image,
     psf_image,
     noise_image,
@@ -67,30 +112,17 @@ def metacal_modecorr(
     dim = image.shape[0]
     wcs, jmat = _wcs_and_matrix(wcs)
 
-    # one shared padded grid for the transfer, the galaxy and the noise
-    pts, npix = _impulse_transfer_kspace(
+    noise_filter = FusionFilter()
+    hfilt, noise_var_factor = noise_filter(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
         dim=dim,
         step=step,
         types=types,
-    )
-    pts_rot, _ = _impulse_transfer_kspace(
-        psf_image=psf_image,
-        wcs=wcs,
-        target_psf=target_psf,
-        dim=dim,
-        step=step,
-        types=types,
-        Np=npix,
-        rotation=90 * galsim.degrees,
     )
 
-    scale, _, _, _ = wcs.getDecomposition()
-    hfilt = _make_hybrid_filters_kspace(
-        pts, pts_rot, npix, scale, types, jmat=jmat
-    )
+    npix = hfilt[types[0]].shape[0]
 
     mcal = Metacal(
         image=image,
@@ -121,17 +153,21 @@ def metacal_modecorr(
         t: mcal_images[t] + mcal_noise_images[t]
         for t in types
     }
+
     return MetacalResult(
         images=odict,
         psf_image=mcal.get_target_psf_image(),
-        noise_var_factor=_predict_noise_var_factor(pts, pts_rot, hfilt, types),
+        # noise_var_factor=_predict_noise_var_factor(
+        #     pts, pts_rot, hfilt, types,
+        # ),
+        noise_var_factor=noise_var_factor,
     )
 
 
 def _predict_noise_var_factor(pts, pts_rot, hfilt, types):
     """
     the factor by which the per-pixel noise variance increases due to the
-    rotated-hybrid correction, relative to plain (uncorrected) metacal.
+    rotated-fusion correction, relative to plain (uncorrected) metacal.
 
     For a white input field the metacal'd image-noise variance is mean(pts)
     and the added correction variance is mean(H^2 * pts_rot) (both per unit
@@ -184,11 +220,11 @@ def _impulse_transfer_kspace(
     return {t: np.abs(khats[t]) ** 2 for t in types}, km.Np
 
 
-def _make_hybrid_filters_kspace(
+def _make_fusion_filters_kspace(
     pts, pts_rot, npix, scale, types, ktol=1e-4, jmat=None
 ):
     """
-    the per-type hybrid filters H_t (on the padded Np grid), in the final
+    the per-type fusion filters H_t (on the padded Np grid), in the final
     (image-metacal) frame; to apply to the sky-rotated, metacal'd correction
     noise (``Metacal(rotation=90*galsim.degrees).get_filtered_images``).
 
@@ -201,7 +237,7 @@ def _make_hybrid_filters_kspace(
         H_t = min(sqrt(D_t / pts_rot_t), 1) * taper,
 
     so adding H_t * corr lands the total noise on the common isotropic level.
-    The cap keeps the hybrid from adding more than the full rotated field
+    The cap keeps the fusion from adding more than the full rotated field
     (fixnoise) in any mode; the taper rolls H smoothly to zero out of band.
 
     Parameters

@@ -187,7 +187,7 @@ class Metacal:
         -------
         dict:
             real image of ifft2(khat_t * filters[t]), cropped to N; ``filters``
-            are Np x Np k-space filters (the hybrid H_t).  The filter is
+            are Np x Np k-space filters (e.g. the fusion H_t).  The filter is
             applied in k on the padded grid; no second fft; so the de-aliased
             correction field stays in the same frame as the transfer that built
             it.

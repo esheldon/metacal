@@ -10,7 +10,7 @@ from metacal import AZGauss
 from metacal.metacalibration import Metacal
 from metacal.metacalibration_modecorr import (
     _impulse_transfer_kspace,
-    _make_hybrid_filters_kspace,
+    _make_fusion_filters_kspace,
 )
 from metacal.wcs import distortion_matrix, galsim_wcs
 
@@ -48,8 +48,10 @@ def _build(theta):
 
 @pytest.mark.parametrize('theta', [None, 45.0])
 def test_delta_transfer_padded(theta):
-    """the transfer is on galsim's padded draw grid Np (>= the stamp), finite
-    and non-negative"""
+    """
+    the transfer is on galsim's padded draw grid Np (>= the stamp), finite
+    and non-negative
+    """
     psf_image, gal_im, wcs = _build(theta)
     pts, Np = _impulse_transfer_kspace(
         psf_image=psf_image,
@@ -93,7 +95,9 @@ def test_rotation_none_is_noop():
 
 
 def test_rotation_requires_angle():
-    """rotation must be a galsim.Angle, not a bare number"""
+    """
+    rotation must be a galsim.Angle, not a bare number
+    """
     psf_image, gal_im, wcs = _build(None)
     noise = np.random.RandomState(7).normal(size=(DIM, DIM))
     with pytest.raises(TypeError):
@@ -210,7 +214,9 @@ def test_sky_rot_diverges_under_distortion():
 
 
 def test_kspace_filters_finite_and_capped():
-    """the hybrid filters (padded Np grid) are real, finite and capped at 1"""
+    """
+    the fusion filters (padded Np grid) are real, finite and capped at 1
+    """
     psf_image, gal_im, wcs = _build(45.0)
     jmat = distortion_matrix(SCALE, theta=45 * galsim.degrees)
     pts, Np = _impulse_transfer_kspace(
@@ -231,7 +237,7 @@ def test_kspace_filters_finite_and_capped():
         Np=Np,
         rotation=90 * galsim.degrees
     )
-    G = _make_hybrid_filters_kspace(pts, pts_rot, Np, SCALE, TYPES, jmat=jmat)
+    G = _make_fusion_filters_kspace(pts, pts_rot, Np, SCALE, TYPES, jmat=jmat)
     for t in TYPES:
         assert G[t].shape == (Np, Np)
         assert np.all(np.isfinite(G[t]))

@@ -1,17 +1,16 @@
 """
-tests for the high-level metacal with hybrid correction
+tests for the high-level metacal with fusion correction
 """
 
 import numpy as np
 import galsim
 import pytest
 
-from metacal import metacal_image, metacal_modecorr
-from metacal import AZGauss
+import metacal
 from metacal.metacalibration import Metacal
 from metacal.metacalibration_modecorr import (
     _impulse_transfer_kspace,
-    _make_hybrid_filters_kspace,
+    _make_fusion_filters_kspace,
 )
 from metacal.wcs import distortion_matrix, galsim_wcs
 
@@ -52,18 +51,20 @@ def _scene(theta=0.0, g1=0.0, g2=0.0, psf_g1=0.03):
         dict(theta=10.0, g1=0.01, g2=-0.005),  # distorted (rot + small shear)
     ],
 )
-def test_metacal_hybrid_runs(wcs_kw):
+def test_metacal_fusion_runs(wcs_kw):
     """
     returns finite corrected images for every type, for a
     diagonal and a distorted wcs, including the full 5-type set
     """
     psf_image, image, noise, wcs = _scene(**wcs_kw)
-    res = metacal_modecorr(
+
+    res = metacal.metacal_noise_correct(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
+        noise_filter=metacal.FusionFilter(),
         wcs=wcs,
-        target_psf=AZGauss(),
+        target_psf=metacal.AZGauss(),
         types=TYPES,
     )
     assert set(res) == set(TYPES)
@@ -79,20 +80,27 @@ def test_wcs_can_be_a_matrix():
     """
     psf_image, image, noise, wcs = _scene(theta=10.0, g1=0.01, g2=-0.005)
     M = distortion_matrix(SCALE, theta=10 * galsim.degrees, g1=0.01, g2=-0.005)
-    a = metacal_modecorr(
+
+    noise_filter = metacal.FusionFilter()
+
+    a = metacal.metacal_noise_correct(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
+        noise_filter=noise_filter,
         wcs=wcs,
-        target_psf=AZGauss(),
+        target_psf=metacal.AZGauss(),
     )
-    b = metacal_modecorr(
+
+    b = metacal.metacal_noise_correct(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
+        noise_filter=noise_filter,
         wcs=M,
-        target_psf=AZGauss(),
+        target_psf=metacal.AZGauss(),
     )
+
     for t in a:
         assert np.array_equal(a[t], b[t])
     assert a.noise_var_factor == b.noise_var_factor
@@ -103,38 +111,43 @@ def test_metacal_convenience():
     the plain metacal_image() convenience equals Metacal(...).get_images()
     """
     psf_image, image, noise, wcs = _scene()
-    a = metacal_image(
+    a = metacal.metacal_image(
         image=image,
         psf_image=psf_image,
         wcs=wcs,
-        target_psf=AZGauss(),
+        target_psf=metacal.AZGauss(),
     )
     b = Metacal(
         image=image,
         psf_image=psf_image,
         wcs=wcs,
-        target_psf=AZGauss(),
+        target_psf=metacal.AZGauss(),
     ).get_images()
     for t in a:
         assert np.array_equal(a[t], b[t])
 
 
-def test_hybrid_adds_only_the_filtered_deficit():
-    target_psf = AZGauss()
+def test_fusion_adds_only_the_filtered_deficit():
+
+    target_psf = metacal.AZGauss()
     psf_image, image, noise, wcs = _scene()
-    plain = metacal_image(
+
+    plain = metacal.metacal_image(
         image=image,
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
     )
-    hyb = metacal_modecorr(
+
+    hyb = metacal.metacal_noise_correct(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
+        noise_filter=metacal.FusionFilter(),
         wcs=wcs,
         target_psf=target_psf,
     )
+
     # the full counter-rotated metacal'd noise fixnoise would add
     full = Metacal(
         image=noise,
@@ -143,6 +156,7 @@ def test_hybrid_adds_only_the_filtered_deficit():
         target_psf=target_psf,
         rotation=90 * galsim.degrees
     ).get_images()
+
     for t in plain:
         corr = hyb[t] - plain[t]
         assert np.all(np.isfinite(corr))
@@ -155,11 +169,11 @@ def test_noise_var_factor_is_one_without_correction():
     plain metacal applies no correction -> the factor is exactly 1.0
     """
     psf_image, image, noise, wcs = _scene()
-    assert metacal_image(
+    assert metacal.metacal_image(
         image=image,
         psf_image=psf_image,
         wcs=wcs,
-        target_psf=AZGauss(),
+        target_psf=metacal.AZGauss(),
     ).noise_var_factor == 1.0
 
 
@@ -168,24 +182,31 @@ def test_noise_var_factor_grows_with_ellipticity():
     minimal for a round psf (well under fixnoise's factor of 2), and larger for
     an elliptical psf
     """
-    target_psf = AZGauss()
+    target_psf = metacal.AZGauss()
 
     psf_r, im_r, nz_r, wcs = _scene(psf_g1=0.0)
     psf_e, im_e, nz_e, wcs = _scene(psf_g1=0.10)
-    fac_round = metacal_modecorr(
+
+    noise_filter = metacal.FusionFilter()
+
+    fac_round = metacal.metacal_noise_correct(
         image=im_r,
         psf_image=psf_r,
         noise_image=nz_r,
+        noise_filter=noise_filter,
         wcs=wcs,
         target_psf=target_psf,
     ).noise_var_factor
-    fac_ell = metacal_modecorr(
+
+    fac_ell = metacal.metacal_noise_correct(
         image=im_e,
         psf_image=psf_e,
         noise_image=nz_e,
+        noise_filter=noise_filter,
         wcs=wcs,
         target_psf=target_psf,
     ).noise_var_factor
+
     assert 1.0 < fac_round < 1.15
     assert fac_round < fac_ell < 2.0
 
@@ -195,18 +216,19 @@ def test_noise_var_factor_predicts_variance_ratio():
     the predicted noise_var_factor matches the measured ratio of the corrected
     to the plain metacal'd noise variance over white-noise realizations
     """
-    target_psf = AZGauss()
+    target_psf = metacal.AZGauss()
 
     psf_image, image, noise, wcs = _scene(psf_g1=0.08)
-    pred = metacal_modecorr(
+    pred = metacal.metacal_noise_correct(
         image=image,
         psf_image=psf_image,
         noise_image=noise,
+        noise_filter=metacal.FusionFilter(),
         wcs=wcs,
         target_psf=target_psf,
     ).noise_var_factor
 
-    # the shared transfers and hybrid filter (the diagonal scene needs no
+    # the shared transfers and fusion filter (the diagonal scene needs no
     # sky-angle projection, so jmat defaults to the pixel frame)
     types = ['noshear']
     pts, Np = _impulse_transfer_kspace(
@@ -227,7 +249,7 @@ def test_noise_var_factor_predicts_variance_ratio():
         Np=Np,
         rotation=90 * galsim.degrees
     )
-    hfilt = _make_hybrid_filters_kspace(pts, pts_rot, Np, SCALE, types)
+    hfilt = _make_fusion_filters_kspace(pts, pts_rot, Np, SCALE, types)
 
     # E[var(plain + correction)] / E[var(plain)] in the central region
     b = 10
