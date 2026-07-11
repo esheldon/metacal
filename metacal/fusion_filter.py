@@ -63,7 +63,7 @@ class FusionFilter:
             target_psf=target_psf,
             dim=dim,
             types=types,
-            Np=npix,
+            npix=npix,
             rotation=90 * galsim.degrees,
         )
 
@@ -79,18 +79,18 @@ class FusionFilter:
 
 
 def _impulse_transfer_kspace(
-    psf_image, wcs, target_psf, dim, types, Np=None, rotation=None
+    psf_image, wcs, target_psf, dim, types, npix=None, rotation=None
 ):
     """
-    the per-type metacal noise transfer P_t = |K_t|^2 on the padded Np x Np
+    the per-type metacal noise transfer P_t = |K_t|^2 on the padded npix x npix
     grid, computed k-natively: push a unit delta impulse through ``Metacal``
     and take |k-array|^2 directly (|fft2(delta)| = 1, so this is relative to a
-    white input).  ``Np`` (default galsim's draw size) must match the Metacal
+    white input).  ``npix`` (default galsim's draw size) must match the Metacal
     whose noise this filter cancels.  ``rotation = 90 * galsim.degrees`` builds
     the rotated transfer P_t^rot = |rotateback(metacal(delta))|^2 (the
     corr-field transfer after the sky rotate-back).
 
-    Returns the Np x Np power dict and the Np used.
+    Returns the npix x npix power dict and the npix used.
     """
     delta = np.zeros((dim, dim))
     delta[dim // 2, dim // 2] = 1.0
@@ -100,18 +100,18 @@ def _impulse_transfer_kspace(
         wcs=wcs,
         target_psf=target_psf,
         types=types,
-        Np=Np,
+        npix=npix,
         rotation=rotation
     )
     khats = km.get_khats()
-    return {t: np.abs(khats[t]) ** 2 for t in types}, km.Np
+    return {t: np.abs(khats[t]) ** 2 for t in types}, km.npix
 
 
 def _make_fusion_filters_kspace(
     pts, pts_rot, npix, scale, types, ktol=1e-4, jmat=None
 ):
     """
-    the per-type fusion filters H_t (on the padded Np grid), in the final
+    the per-type fusion filters H_t (on the padded npix grid), in the final
     (image-metacal) frame; to apply to the sky-rotated, metacal'd correction
     noise (``Metacal(rotation=90*galsim.degrees).get_filtered_images``).
 
@@ -129,12 +129,12 @@ def _make_fusion_filters_kspace(
 
     Parameters
     ----------
-    pts, pts_rot: dict type -> (Np, Np) array
+    pts, pts_rot: dict type -> (npix, npix) array
         the un-rotated and sky-rotated metacal transfers
         (_impulse_transfer_kspace
         with rotation None and 90*galsim.degrees)
     npix: int
-        the grid size Np
+        the grid size npix
     scale: float
         pixel scale [arcsec/pixel]
     ktol: float
@@ -194,7 +194,7 @@ def _common_harmonic_deficits(pts, dim, scale, ms=(2, 6), jac=None):
     pts: dict of type -> (dim, dim) array
         A dict holding the Pt=square of the transfer function for each type.
     dim: int
-        grid size (the padded k-grid Np for the k-space metacal)
+        grid size (the padded k-grid npix for the k-space metacal)
     scale: float
         pixel scale [arcsec/pixel]
     ms: tuple of int
