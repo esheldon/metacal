@@ -6,8 +6,11 @@ import numpy as np
 import galsim
 
 from .result import MetacalResult
-from .defaults import LANCZOS, DEFAULT_TYPES, SHEAR_STEP
+from .defaults import DEFAULT_TYPES
 from ._util import _wcs_and_matrix
+
+LANCZOS = 'lanczos15'
+SHEAR_STEP = 0.01
 
 
 def metacal_image(
@@ -85,18 +88,15 @@ class Metacal:
         For an example see metacal.AZGauss
     types: sequence of str
         any of 'noshear', '1p', '1m', '2p', '2m'
-    Np: int, optional
+    npix: int, optional
         the padded draw-grid size; default None computes galsim's own drawFFT
-        size.  Pass an explicit Np only to force one shared grid across a set
+        size.  Pass an explicit npix only to force one shared grid across a set
         of Metacals (the filter and the noise it cancels must share a frame).
         This is not a tuning knob.
     rotation: galsim.Angle or None
         sky-frame rotation of the input field before metacal (the metacal'd
         field is rotated back by -rotation). Setting ``rotation=90 *
         galsim.degrees`` builds the noise correction field.
-    x_interpolant: str
-        the InterpolatedImage interpolant (default lanczos15, the metacal
-        kernel)
     """
 
     def __init__(
@@ -106,9 +106,8 @@ class Metacal:
         wcs,
         target_psf,
         types=DEFAULT_TYPES,
-        Np=None,
+        npix=None,
         rotation=None,
-        x_interpolant=LANCZOS,
     ):
         if rotation is not None and not isinstance(rotation, galsim.Angle):
             raise TypeError(
@@ -124,9 +123,7 @@ class Metacal:
         self._khats = None
 
         img = galsim.Image(np.asarray(image, dtype=float), wcs=self._wcs)
-        self._image_int = galsim.InterpolatedImage(
-            img, x_interpolant=x_interpolant
-        )
+        self._image_int = galsim.InterpolatedImage(img, x_interpolant=LANCZOS)
         if self._rotation is not None:
             self._image_int = self._image_int.rotate(self._rotation)
 
@@ -148,17 +145,17 @@ class Metacal:
 
         self._target_psf = tpsf.dilate(1.0 + 2.0 * SHEAR_STEP)
 
-        # the padded draw grid (galsim's own drawFFT size unless shared via Np)
-        self._Np = self._galsim_kpad_size() if Np is None else int(Np)
-        self._lo = (self._Np - self._N) // 2
+        # the padded draw grid (galsim's own drawFFT size unless shared via npix)
+        self._npix = self._galsim_kpad_size() if npix is None else int(npix)
+        self._lo = (self._npix - self._N) // 2
 
-        # numpy-fft-matched k grid on the Np draw grid: dk = 2*pi/Np, plus the
-        # ifftshift reorder and the (Np-1)/2 centering phase ramp that match
+        # numpy-fft-matched k grid on the npix draw grid: dk = 2*pi/npix, plus the
+        # ifftshift reorder and the (npix-1)/2 centering phase ramp that match
         # galsim's drawKImage to fft2(drawImage(method='no_pixel'))
-        self._dk = 2.0 * np.pi / self._Np
-        k1 = 2.0 * np.pi * np.fft.fftfreq(self._Np)
+        self._dk = 2.0 * np.pi / self._npix
+        k1 = 2.0 * np.pi * np.fft.fftfreq(self._npix)
         kxg, kyg = np.meshgrid(k1, k1)
-        self._phase = np.exp(-1j * (kxg + kyg) * (self._Np - 1.0) / 2.0)
+        self._phase = np.exp(-1j * (kxg + kyg) * (self._npix - 1.0) / 2.0)
 
     def get_images(self):
         """
@@ -166,7 +163,7 @@ class Metacal:
         -------
         dict:
             The real metacal'd images, cropped to the center N x N (one
-            ifft2 per type of the Np-grid get_khats)
+            ifft2 per type of the npix-grid get_khats)
         """
         return {
             t: self._crop(np.fft.ifft2(k).real)
@@ -179,7 +176,7 @@ class Metacal:
         -------
         dict:
             real image of ifft2(khat_t * filters[t]), cropped to N; ``filters``
-            are Np x Np k-space filters (e.g. the fusion H_t).  The filter is
+            are npix x npix k-space filters (e.g. the fusion H_t).  The filter is
             applied in k on the padded grid; no second fft; so the de-aliased
             correction field stays in the same frame as the transfer that built
             it.
@@ -207,7 +204,7 @@ class Metacal:
 
     def get_khats(self):
         """
-        dict type -> Np x Np metacal'd k-array (numpy fft layout); cached
+        dict type -> npix x npix metacal'd k-array (numpy fft layout); cached
         """
         if self._khats is None:
             self._khats = {
@@ -216,8 +213,8 @@ class Metacal:
         return self._khats
 
     @property
-    def Np(self):
-        return self._Np
+    def npix(self):
+        return self._npix
 
     def _galsim_kpad_size(self):
         """
@@ -241,8 +238,8 @@ class Metacal:
         """
         image_profile = self._wcs.profileToImage(world_profile)
         kim = image_profile.drawKImage(
-            nx=self._Np,
-            ny=self._Np,
+            nx=self._npix,
+            ny=self._npix,
             scale=self._dk,
         )
         return np.fft.ifftshift(kim.array) * self._phase
@@ -266,7 +263,7 @@ class Metacal:
 
     def _crop(self, arr):
         """
-        crop the center N x N out of an Np x Np draw
+        crop the center N x N out of an npix x npix draw
         """
         lo = self._lo
         return arr[lo : lo + self._N, lo : lo + self._N]
