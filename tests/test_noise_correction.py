@@ -16,7 +16,6 @@ from metacal.wcs import distortion_matrix, galsim_wcs
 
 DIM = 48
 SCALE = 0.2
-STEP = 0.01
 TYPES = ['noshear', '1p', '1m', '2p', '2m']
 
 
@@ -236,7 +235,6 @@ def test_noise_var_factor_predicts_variance_ratio():
         wcs=wcs,
         target_psf=target_psf,
         dim=DIM,
-        step=STEP,
         types=types,
     )
     pts_rot, _ = _impulse_transfer_kspace(
@@ -244,7 +242,6 @@ def test_noise_var_factor_predicts_variance_ratio():
         wcs=wcs,
         target_psf=target_psf,
         dim=DIM,
-        step=STEP,
         types=types,
         Np=Np,
         rotation=90 * galsim.degrees
@@ -265,7 +262,6 @@ def test_noise_var_factor_predicts_variance_ratio():
             psf_image=psf_image,
             wcs=wcs,
             target_psf=target_psf,
-            step=STEP,
             types=types,
             Np=Np
         ).get_images()['noshear']
@@ -274,7 +270,6 @@ def test_noise_var_factor_predicts_variance_ratio():
             psf_image=psf_image,
             wcs=wcs,
             target_psf=target_psf,
-            step=STEP,
             types=types,
             Np=Np,
             rotation=90 * galsim.degrees,

@@ -13,7 +13,6 @@ ngmix = pytest.importorskip('ngmix')
 
 DIM = 48
 SCALE = 0.2
-STEP = 0.01
 TYPES = ['noshear', '1p', '1m']
 
 
@@ -74,7 +73,6 @@ def test_metacal_matches_ngmix(theta):
     ngmix_odict = ngmix.metacal.get_all_metacal(
         obs,
         psf='azgauss',
-        step=STEP,
         rng=None,
         types=TYPES,
         fixnoise=False,

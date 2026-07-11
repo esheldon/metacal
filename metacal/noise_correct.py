@@ -8,7 +8,6 @@ def metacal_noise_correct(
     noise_filter,
     wcs,
     target_psf,
-    step=0.01,
     types=DEFAULT_TYPES,
 
 ):
@@ -34,8 +33,6 @@ def metacal_noise_correct(
         This should be callable with target_psf(psf=psf, flux=flux),
         with psf a galsim object such as galsim.InterpolatedImage.  For
         an example see metacal.AZGauss
-    step: float
-        metacal shear step
     types: sequence of str
         any of 'noshear', '1p', '1m', '2p', '2m'.  Note that to get the noise
         correction right, you need to send the +/- as well as noshear to be
@@ -68,7 +65,6 @@ def metacal_noise_correct(
         wcs=wcs,
         target_psf=target_psf,
         dim=dim,
-        step=step,
         types=types,
     )
 
@@ -79,7 +75,6 @@ def metacal_noise_correct(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
-        step=step,
         types=types,
         Np=npix,
     )
@@ -92,7 +87,6 @@ def metacal_noise_correct(
         psf_image,
         wcs,
         target_psf=target_psf,
-        step=step,
         types=types,
         Np=npix,
         rotation=90 * galsim.degrees,

@@ -7,7 +7,6 @@ def metacal_obs(
     noise_filter,
     target_psf,
     rng,
-    step=0.01,
     types=DEFAULT_TYPES,
 ):
     """
@@ -27,8 +26,6 @@ def metacal_obs(
         For an example see metacal.AZGauss
     rng: np.random.RandomState
         For adding a little noise to the final PSF image
-    step: float
-        metacal shear step
     types: sequence of str
         any of 'noshear', '1p', '1m', '2p', '2m'
 
@@ -53,7 +50,6 @@ def metacal_obs(
         noise_filter=noise_filter,
         wcs=wcs,
         target_psf=target_psf,
-        step=step,
         types=types,
     )
 

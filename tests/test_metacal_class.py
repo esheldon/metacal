@@ -16,7 +16,6 @@ from metacal.wcs import distortion_matrix, galsim_wcs
 
 DIM = 48
 SCALE = 0.2
-STEP = 0.01
 TYPES = ['noshear', '1p', '1m']
 
 
@@ -58,7 +57,6 @@ def test_delta_transfer_padded(theta):
         wcs=wcs,
         target_psf=AZGauss(),
         dim=DIM,
-        step=STEP,
         types=TYPES,
     )
     assert Np >= DIM and Np % 2 == 0
@@ -78,7 +76,6 @@ def test_rotation_none_is_noop():
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
-        step=STEP,
         types=TYPES,
     ).get_images()
     b = Metacal(
@@ -86,7 +83,6 @@ def test_rotation_none_is_noop():
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
-        step=STEP,
         types=TYPES,
         rotation=None
     ).get_images()
@@ -106,7 +102,6 @@ def test_rotation_requires_angle():
             psf_image=psf_image,
             wcs=wcs,
             target_psf=AZGauss(),
-            step=STEP,
             types=TYPES,
             rotation=90.0,
         )
@@ -116,7 +111,6 @@ def test_rotation_requires_angle():
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
-        step=STEP,
         types=TYPES,
         rotation=90 * galsim.degrees,
     )
@@ -134,7 +128,6 @@ def test_sky_rot_conformal_matches_pixel(theta):
         wcs=wcs,
         target_psf=AZGauss(),
         dim=DIM,
-        step=STEP,
         types=TYPES,
     )
     n2 = np.random.RandomState(11).normal(size=(DIM, DIM))
@@ -145,7 +138,6 @@ def test_sky_rot_conformal_matches_pixel(theta):
                 psf_image=psf_image,
                 wcs=wcs,
                 target_psf=AZGauss(),
-                step=STEP,
                 types=TYPES,
                 Np=NP
             ).get_images()[t],
@@ -158,7 +150,6 @@ def test_sky_rot_conformal_matches_pixel(theta):
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
-        step=STEP,
         types=TYPES,
         Np=NP,
         rotation=90 * galsim.degrees,
@@ -184,7 +175,6 @@ def test_sky_rot_diverges_under_distortion():
         wcs=wcs,
         target_psf=AZGauss(),
         dim=DIM,
-        step=STEP,
         types=TYPES,
     )
     n2 = np.random.RandomState(11).normal(size=(DIM, DIM))
@@ -194,7 +184,6 @@ def test_sky_rot_diverges_under_distortion():
             psf_image=psf_image,
             wcs=wcs,
             target_psf=AZGauss(),
-            step=STEP,
             types=TYPES,
             Np=NP
         ).get_images()['noshear'],
@@ -205,7 +194,6 @@ def test_sky_rot_diverges_under_distortion():
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
-        step=STEP,
         types=TYPES,
         Np=NP,
         rotation=90 * galsim.degrees,
@@ -224,7 +212,6 @@ def test_kspace_filters_finite_and_capped():
         wcs=wcs,
         target_psf=AZGauss(),
         dim=DIM,
-        step=STEP,
         types=TYPES,
     )
     pts_rot, _ = _impulse_transfer_kspace(
@@ -232,7 +219,6 @@ def test_kspace_filters_finite_and_capped():
         wcs=wcs,
         target_psf=AZGauss(),
         dim=DIM,
-        step=STEP,
         types=TYPES,
         Np=Np,
         rotation=90 * galsim.degrees

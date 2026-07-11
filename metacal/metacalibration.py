@@ -6,7 +6,7 @@ import numpy as np
 import galsim
 
 from .result import MetacalResult
-from .defaults import LANCZOS, DEFAULT_TYPES
+from .defaults import LANCZOS, DEFAULT_TYPES, SHEAR_STEP
 from ._util import _wcs_and_matrix
 
 
@@ -15,7 +15,6 @@ def metacal_image(
     psf_image,
     wcs,
     target_psf,
-    step=0.01,
     types=DEFAULT_TYPES,
 ):
     """
@@ -34,8 +33,6 @@ def metacal_image(
         This should be a galsim.GSObject or a callable with target_psf(psf=psf,
         flux=flux), with psf a galsim object such as galsim.InterpolatedImage.
         For an example see metacal.AZGauss
-    step: float
-        metacal shear step
     types: sequence of str
         any of 'noshear', '1p', '1m', '2p', '2m'.  Note that to get the noise
         correction right, you need to send the +/- as well as noshear to be
@@ -56,7 +53,6 @@ def metacal_image(
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
-        step=step,
         types=types,
     )
     return MetacalResult(
@@ -87,8 +83,6 @@ class Metacal:
         This should be a galsim.GSObject or a callable with target_psf(psf=psf,
         flux=flux), with psf a galsim object such as galsim.InterpolatedImage.
         For an example see metacal.AZGauss
-    step: float
-        metacal shear step
     types: sequence of str
         any of 'noshear', '1p', '1m', '2p', '2m'
     Np: int, optional
@@ -111,7 +105,6 @@ class Metacal:
         psf_image,
         wcs,
         target_psf,
-        step=0.01,
         types=DEFAULT_TYPES,
         Np=None,
         rotation=None,
@@ -126,7 +119,6 @@ class Metacal:
         self._N = image.shape[0]
         self._psf_image = psf_image
         self._wcs, self._wcs_matrix = _wcs_and_matrix(wcs)
-        self._step = step
         self._types = list(types)
         self._rotation = rotation
         self._khats = None
@@ -154,7 +146,7 @@ class Metacal:
         else:
             tpsf = target_psf(psf_int, flux=self.psf_flux)
 
-        self._target_psf = tpsf.dilate(1.0 + 2.0 * self._step)
+        self._target_psf = tpsf.dilate(1.0 + 2.0 * SHEAR_STEP)
 
         # the padded draw grid (galsim's own drawFFT size unless shared via Np)
         self._Np = self._galsim_kpad_size() if Np is None else int(Np)
@@ -261,7 +253,7 @@ class Metacal:
         the sky rotate-back (-rotation) applied so the field is in the final
         image-metacal frame ready to add
         """
-        sh = _shear_kwargs(t, self._step)
+        sh = _shear_kwargs(t)
         nopsf = (
             self._image_int_nopsf
             if sh is None
@@ -280,7 +272,7 @@ class Metacal:
         return arr[lo : lo + self._N, lo : lo + self._N]
 
 
-def _shear_kwargs(t, step):
+def _shear_kwargs(t):
     """
     galsim .shear() kwargs for a metacal type (None for noshear).  1p/1m shear
     g1=+/-step, 2p/2m shear g2=+/-step ; 2p/2m give the g2 column of the full
@@ -289,8 +281,8 @@ def _shear_kwargs(t, step):
     """
     return {
         'noshear': None,
-        '1p': {'g1': step, 'g2': 0.0},
-        '1m': {'g1': -step, 'g2': 0.0},
-        '2p': {'g1': 0.0, 'g2': step},
-        '2m': {'g1': 0.0, 'g2': -step},
+        '1p': {'g1': SHEAR_STEP, 'g2': 0.0},
+        '1m': {'g1': -SHEAR_STEP, 'g2': 0.0},
+        '2p': {'g1': 0.0, 'g2': SHEAR_STEP},
+        '2m': {'g1': 0.0, 'g2': -SHEAR_STEP},
     }[t]
