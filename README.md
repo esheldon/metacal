@@ -31,7 +31,7 @@ res = metacal.metacal_image(
 
 `metacal_image` implements the basic metcalibration operations.  No noise
 correction is applied.  The `target_psf` is specified by the user, either as a
-callable or a `galsim.GSObject`.  We provide the `AZGauss`.  The `wcs` is a
+callable or a `galsim.GSObject`.  We provide `AZGauss`.  The `wcs` is a
 `local/Jacobian galsim WCS`.
 
 The returned `res` is a `MetacalResult`, which is a `dict`-like keyed by
