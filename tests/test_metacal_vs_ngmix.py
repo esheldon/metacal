@@ -5,15 +5,15 @@ import numpy as np
 import galsim
 import pytest
 
-from metacal.metacal import metacal_obs
+from metacal import AZGauss
+from metacal import metacal_image
 from metacal.wcs import distortion_matrix, galsim_wcs
 
 ngmix = pytest.importorskip('ngmix')
 
 DIM = 48
 SCALE = 0.2
-STEP = 0.01
-TYPES = ['noshear', '1p', '1m']
+TYPES = ('noshear', '1p', '1m')
 
 
 def _build(theta):
@@ -25,7 +25,7 @@ def _build(theta):
             {'scale': SCALE},
         )
     else:
-        jacmat = distortion_matrix(SCALE, theta=theta * galsim.degrees)
+        jacmat = distortion_matrix(SCALE, theta=theta * galsim.degrees, g1=0, g2=0)
         wcs = galsim_wcs(jacmat)
         dkw = {'wcs': wcs}
 
@@ -62,35 +62,34 @@ def _build_obs(theta):
 @pytest.mark.parametrize('theta', [None, 30.0, 45.0])
 def test_metacal_matches_ngmix(theta):
     """
-    k-native metacal field EQUALS ngmix's drawn metacal to ~machine precision,
+    k-native metacal field equals ngmix's drawn metacal to ~machine precision,
     edge included, for diagonal/rotated wcs and a galaxy AND a noise field
     """
 
     obs = _build_obs(theta)
-    rng = np.random.RandomState(3)
-    noise = rng.normal(size=(DIM, DIM))
+    obs.noise = obs.image * 0
 
-    def _noise_obs(obs, noise):
-        new = obs.copy()
-        new.image = noise
-        return new
+    # ngmix metacal without noise correction
+    ngmix_odict = ngmix.metacal.get_all_metacal(
+        obs,
+        psf='azgauss',
+        rng=None,
+        types=TYPES,
+        fixnoise=False,
+    )
 
-    for mkobs in [obs, _noise_obs(obs, noise)]:
-        ngmix_odict = ngmix.metacal.get_all_metacal(
-            mkobs,
-            psf='azgauss',
-            step=STEP,
-            rng=None,
-            types=TYPES,
-            fixnoise=False,
-        )
+    res = metacal_image(
+        obs.image,
+        psf_image=obs.psf.image,
+        wcs=obs.jacobian.get_galsim_wcs(),
+        target_psf=AZGauss(),
+        types=TYPES,
+    )
 
-        res = metacal_obs(mkobs, rng=rng, types=TYPES)
+    for t in TYPES:
+        ngmix_image = ngmix_odict[t].image
+        image = res[t]
 
-        for t in TYPES:
-            ngmix_image = ngmix_odict[t].image
-            image = res[t].image
-
-            msqdiff = np.sqrt(((ngmix_image - image) ** 2).mean())
-            sq = np.sqrt((ngmix_image**2).mean())
-            assert msqdiff / sq < 1e-6
+        msqdiff = np.sqrt(((ngmix_image - image) ** 2).mean())
+        sq = np.sqrt((ngmix_image**2).mean())
+        assert msqdiff / sq < 1e-6

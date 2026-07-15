@@ -37,45 +37,44 @@ SMALL_KVAL = 3.0e-2    # find the k where the given psf hits this kvalue
 SMALLER_KVAL = 9.0e-3  # target PSF will have this kvalue at the same k
 
 
-def get_azgauss_target_psf(
-    psf,
-    flux,
-    small_kval=SMALL_KVAL,
-    smaller_kval=SMALLER_KVAL,
-):
+class AZGauss:
     """
-    get a round gaussian target reconvolution psf, pinned below the
-    input psf profile at the scale where the psf profile falls to
-    small_kval of its flux
+    Get a round Gaussian target reconvolution psf
 
-    assumes the psf is centered
-
-    Parameters
-    ----------
-    psf: galsim object
-        the psf, e.g. a galsim.InterpolatedImage
-    flux: float
-        flux of the output gaussian
-    small_kval: float
-        find the k where the psf profile falls to this fraction of flux
-    smaller_kval: float
-        the target gaussian has this kvalue at that k
-
-    Returns
-    -------
-    galsim.Gaussian
+    The FWHM of the Gaussian is pinned below the input psf profile at the scale
+    where the psf profile falls to SMALL_KVAL of its flux
     """
-    dk, prof = get_annular_kprofile(psf)
-    k_cross = get_interpolated_crossing(dk, prof, small_kval * psf.flux)
-    ksq_max = k_cross**2
 
-    # exp(-0.5 * ksq_max * sigma_sq) = smaller_kval
-    sigma_sq = -2.0 * np.log(smaller_kval) / ksq_max
+    def __call__(self, psf, flux):
+        """
+        Get the target psf.
 
-    return galsim.Gaussian(sigma=np.sqrt(sigma_sq), flux=flux)
+        Parameters
+        ----------
+        psf: galsim object
+            the psf, e.g. a galsim.InterpolatedImage
+        flux: float
+            flux of the output gaussian
+
+        Returns
+        -------
+        galsim.Gaussian
+        """
+        dk, prof = _get_annular_kprofile(psf)
+        k_cross = _get_interpolated_crossing(
+            dk=dk,
+            prof=prof,
+            thresh=SMALL_KVAL * psf.flux,
+        )
+        ksq_max = k_cross**2
+
+        # exp(-0.5 * ksq_max * sigma_sq) = SMALLER_KVAL
+        sigma_sq = -2.0 * np.log(SMALLER_KVAL) / ksq_max
+
+        return galsim.Gaussian(sigma=np.sqrt(sigma_sq), flux=flux)
 
 
-def get_annular_kprofile(psf):
+def _get_annular_kprofile(psf):
     """
     azimuthally average the real part of the psf k image in annuli of
     width dk = stepk/4
@@ -116,7 +115,7 @@ def get_annular_kprofile(psf):
     return dk, prof
 
 
-def get_interpolated_crossing(dk, prof, thresh):
+def _get_interpolated_crossing(dk, prof, thresh):
     """
     the k where the annular profile crosses below the threshold, interpolated
     between the first annulus below the threshold and the one before it.

@@ -1,22 +1,22 @@
 # flake8: noqa
-from . import metacal
-from .metacal import (
-    Metacal,
-    MetacalResult,
-    metacal,
-    metacal_obs,
-    delta_transfer_kspace,
-    make_hybrid_filters_kspace,
-    DEFAULT_TYPES,
-    LANCZOS,
-)
-from . import deficit
-from .deficit import common_harmonic_deficits
-
-from . import wcs
-from .wcs import distortion_matrix, galsim_wcs
-
-from . import azgauss_target_psf
-from .azgauss_target_psf import get_azgauss_target_psf
 
 __version__ = '0.1.0'
+
+from . import metacalibration
+from .metacalibration import metacal_image
+
+from . import noise_correct
+from .noise_correct import metacal_noise_correct
+
+from . import fusion_filter
+from .fusion_filter import FusionFilter
+
+from .  import obs
+from .obs import metacal_obs
+
+from . import result
+from .result import MetacalResult
+
+from . import wcs
+from . import azgauss_target_psf
+from .azgauss_target_psf import AZGauss
