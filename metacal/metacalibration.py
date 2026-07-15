@@ -8,7 +8,8 @@ import galsim
 from .result import MetacalResult
 from ._util import _wcs_and_matrix
 
-LANCZOS = 'lanczos15'
+# LANCZOS = 'lanczos15'
+LANCZOS = 'lanczos3'
 SHEAR_STEP = 0.01
 
 
