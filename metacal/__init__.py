@@ -20,3 +20,6 @@ from .result import MetacalResult
 from . import wcs
 from . import azgauss_target_psf
 from .azgauss_target_psf import AZGauss
+
+from . import sym_target_psf
+from .sym_target_psf import Symmetrize

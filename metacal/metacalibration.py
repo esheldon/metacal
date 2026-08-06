@@ -144,13 +144,14 @@ class Metacal:
 
         self._target_psf = tpsf.dilate(1.0 + 2.0 * SHEAR_STEP)
 
-        # the padded draw grid (galsim's own drawFFT size unless shared via npix)
+        # the padded draw grid (galsim's own drawFFT size unless shared via
+        # npix)
         self._npix = self._galsim_kpad_size() if npix is None else int(npix)
         self._lo = (self._npix - self._N) // 2
 
-        # numpy-fft-matched k grid on the npix draw grid: dk = 2*pi/npix, plus the
-        # ifftshift reorder and the (npix-1)/2 centering phase ramp that match
-        # galsim's drawKImage to fft2(drawImage(method='no_pixel'))
+        # numpy-fft-matched k grid on the npix draw grid: dk = 2*pi/npix, plus
+        # the ifftshift reorder and the (npix-1)/2 centering phase ramp that
+        # match galsim's drawKImage to fft2(drawImage(method='no_pixel'))
         self._dk = 2.0 * np.pi / self._npix
         k1 = 2.0 * np.pi * np.fft.fftfreq(self._npix)
         kxg, kyg = np.meshgrid(k1, k1)
@@ -175,10 +176,10 @@ class Metacal:
         -------
         dict:
             real image of ifft2(khat_t * filters[t]), cropped to N; ``filters``
-            are npix x npix k-space filters (e.g. the fusion H_t).  The filter is
-            applied in k on the padded grid; no second fft; so the de-aliased
-            correction field stays in the same frame as the transfer that built
-            it.
+            are npix x npix k-space filters (e.g. the fusion H_t).  The filter
+            is applied in k on the padded grid; no second fft; so the
+            de-aliased correction field stays in the same frame as the transfer
+            that built it.
         """
         kh = self.get_khats()
         return {

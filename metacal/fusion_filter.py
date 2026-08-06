@@ -18,6 +18,14 @@ class FusionFilter:
     that adds the minimal amount of noise to correct the spin-2 modes
     imprinted on the noise by the metacalibration process
 
+    With ``full=True`` the minimal-noise solve is short-circuited: the
+    filter is set to its cap (the in-band taper alone), adding the FULL
+    rotated correction field in every mode, as fixnoise does, while
+    keeping the rest of the fusion machinery identical.  This is a
+    diagnostic mode for separating effects of the minimal-noise
+    residual from the rest of the metacal implementation; it doubles
+    the noise variance.
+
     Parameters
     ----------
     psf_image: array
@@ -38,6 +46,9 @@ class FusionFilter:
         processed all together.  This is because they are all needed to
         determine the overall level of noise to be used (max among the types).
     """
+    def __init__(self, full=False):
+        self.full = bool(full)
+
     def __call__(
         self,
         psf_image,
@@ -68,7 +79,8 @@ class FusionFilter:
 
         scale, _, _, _ = wcs.getDecomposition()
         hfilt = _make_fusion_filters_kspace(
-            pts, pts_rot, npix, scale, types, jmat=jmat
+            pts, pts_rot, npix, scale, types, jmat=jmat,
+            full=self.full,
         )
         noise_var_factor = _predict_noise_var_factor(
             pts=pts, pts_rot=pts_rot, hfilt=hfilt, types=types,
@@ -107,7 +119,8 @@ def _impulse_transfer_kspace(
 
 
 def _make_fusion_filters_kspace(
-    pts, pts_rot, npix, scale, types, ktol=1e-4, jmat=None
+    pts, pts_rot, npix, scale, types, ktol=1e-4, jmat=None,
+    full=False,
 ):
     """
     the per-type fusion filters H_t (on the padded npix grid), in the final
@@ -148,10 +161,17 @@ def _make_fusion_filters_kspace(
         pt = pts_rot[t]
         padd = deficits[t]
         eps = ktol * pt.max()
+        if full:
+            # short-circuit: the cap everywhere in band = the full
+            # rotated field (fixnoise level) through the same
+            # machinery; see the FusionFilter docstring
+            out[t] = pt / (pt + eps)
+            continue
         hraw = np.sqrt(
             np.divide(padd, pt, out=np.zeros_like(padd), where=pt > 0)
         )
         out[t] = np.minimum(hraw, 1.0) * pt / (pt + eps)
+
     return out
 
 

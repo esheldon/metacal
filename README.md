@@ -6,7 +6,8 @@ This package supercedes the metacal code that was part of `ngmix`.
 
 We provide the "fusion" noise correction that increases the noise by only a few
 percent for typical PSFs, as compared to the old correction that increases it
-by `sqrt(2)` in all cases.  We also provide the "azgauss" psf target.
+by `sqrt(2)` in all cases.  We also provide the `Symmetrize` and `AZGauss`
+psf targets.
 
 Examples
 ---------
@@ -24,15 +25,15 @@ res = metacal.metacal_image(
     image=image,
     psf_image=psf_image,
     wcs=wcs,
-    target_psf=metacal.AZGauss(),
+    target_psf=metacal.Symmetrize(nrot=4, rng=rng),
     types=('noshear', '1p', '1m', '2p', '2m'),
 )
 ```
 
 `metacal_image` implements the basic metcalibration operations.  No noise
 correction is applied.  The `target_psf` is specified by the user, either as a
-callable or a `galsim.GSObject`.  We provide `AZGauss`.  The `wcs` is a
-`local/Jacobian galsim WCS`.
+callable or a `galsim.GSObject`.  We provide `Symmetrize` and `AZGauss`.  The
+`wcs` is a `local/Jacobian galsim WCS`.
 
 The returned `res` is a `MetacalResult`, which is a `dict`-like keyed by
 metacal type `('1p', 'noshear', etc)` with each item the corresponding image.
@@ -50,7 +51,7 @@ res = metacal.metacal_noise_correct(
     noise_image=noise_image,
     noise_filter=metacal.FusionFilter(),
     wcs=wcs,
-    target_psf=metacal.AZGauss(),
+    target_psf=metacal.Symmetrize(nrot=4, rng=rng),
     types=('noshear', '1p', '1m', '2p', '2m'),
 )
 ```
@@ -73,7 +74,7 @@ import metacal
 res = metacal.metacal_obs(
     obs=obs,
     noise_filter=metacal.FusionFilter(),
-    target_psf=metacal.AZGauss(),
+    target_psf=metacal.Symmetrize(nrot=4, rng=rng),
     types=('noshear', '1p', '1m', '2p', '2m'),
     rng=rng,
 )
@@ -84,11 +85,12 @@ Here `res` is a dict holding `Observations` for each requested metacal type.
 Why a new package?
 ------------------
 
-The new fusion noise method and azgauss reconvolution kernel included in this
-package are significantly better than the old defaults from `ngmix`. But, due
-to poor design choices in `ngmix` (using a "default keyword" structure for
-these features), there is no easy way to slot them in as the new defaults
-without breaking backwards compatibility.  We decided to make a clean break.
+The new fusion noise method and the symmetrize and azgauss reconvolution
+kernels included in this package are significantly better than the old defaults
+from `ngmix`. But, due to poor design choices in `ngmix` (using a "default
+keyword" structure for these features), there is no easy way to slot them in as
+the new defaults without breaking backwards compatibility.  We decided to make
+a clean break.
 
 This package is designed so that the user must explicity send the callable or
 `galsim.GSObject` that creates the target psf.  No default is provided.
