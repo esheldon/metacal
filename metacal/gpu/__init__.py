@@ -29,7 +29,7 @@ backed by an engine cache on (dim, types, precision):
                       target_psf=AZGauss(), rng=rng, types=types)
 """
 
-from .bundle import PsfBundle
+from .bundle import PsfBundle, PsfCore
 from .engine import FusionEngine
 
 _ENGINE_CACHE = {}

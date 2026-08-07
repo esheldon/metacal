@@ -37,7 +37,7 @@ from ..result import MetacalResult
 from ..obs import package_metacal_obs
 from . import _kernels
 from ._maxk import maxk_scan, lanczos15_krange_pix
-from .bundle import PsfBundle, _diagonal_scale
+from .bundle import PsfCore, _diagonal_scale
 
 R90 = np.array([[0.0, -1.0], [1.0, 0.0]])
 
@@ -175,15 +175,36 @@ class FusionEngine:
             )
         return self._grids[key]
 
+    def _delta_kcut(self, bundle):
+        """the maxk cut a delta image carries: its all-ones
+        k-table hits every checked ring, so the scan lands
+        exactly on the interpolant k-range cap; the psf-side cut
+        then usually binds"""
+        npad = _kernels.pad_size(self.dim)
+        dk = 2.0 * np.pi / npad
+        max_ix = min(int(np.ceil(self._krange_pix / dk)),
+                     npad // 2)
+        return min((max_ix + 1) * dk, bundle.psf_maxk_pix)
+
     def _get_factors(self, bundle):
         """the per-psf device factor tables, assembled from the
         bundle via the cached psf-independent grids; LRU on the
-        psf content"""
+        psf content.  When the bundle carries no hfilt (a
+        PsfCore), the fusion filter is built HERE from the
+        device impulse transfers: a delta image's k-table is
+        exactly ones, so the per-type transfers are the factor
+        magnitudes already being assembled; the harmonic-deficit
+        solve runs on the downloaded grids with the same CPU
+        code as FusionFilter (fusion_filter privates), and
+        bundle.noise_var_factor is filled."""
         cp = self.cp
         key = bundle.key()
         if key in self._factors:
             self._factors.move_to_end(key)
-            return self._factors[key]
+            out = self._factors[key]
+            if bundle.noise_var_factor is None:
+                bundle.noise_var_factor = out['nvf']
+            return out
 
         if list(bundle.types) != self.types:
             raise ValueError(
@@ -196,7 +217,8 @@ class FusionEngine:
                 f'{self.dim}'
             )
         psf_dim = bundle.psf_image.shape[0]
-        g = self._get_grids(psf_dim, bundle.npix)
+        npix = bundle.npix
+        g = self._get_grids(psf_dim, npix)
 
         t_psf, npad_psf, _ = _kernels.build_table(
             bundle.psf_image)
@@ -208,28 +230,67 @@ class FusionEngine:
         pk2 = bundle.psf_maxk_pix ** 2
 
         nt = len(self.types)
-        facA = []
-        facN = []
+        fA64 = []
+        fN64 = []
         for i in range(nt):
             den = _kernels.gather(
                 self._kern64, t_psf, npad_psf,
                 g.cAx64[i], g.cAy64[i], cp.complex128)
             fA = tr * g.phA[i] / den
-            fA = fA * (g.arg2A[i] <= pk2)
-            facA.append(fA.astype(self._cdt))
+            fA64.append(fA * (g.arg2A[i] <= pk2))
 
             den = _kernels.gather(
                 self._kern64, t_psf, npad_psf,
                 g.pNx64[i], g.pNy64[i], cp.complex128)
-            fN = (tr * g.phN[i] * gmask / den
-                  * cp.asarray(
-                      bundle.hfilt[self.types[i]].ravel()))
-            fN = fN * (g.arg2N[i] <= pk2)
-            facN.append(fN.astype(self._cdt))
+            fN = tr * g.phN[i] * gmask / den
+            fN64.append(fN * (g.arg2N[i] <= pk2))
+
+        if bundle.hfilt is not None:
+            # stage-1 semantics: the CPU-built filter arrives
+            # with the bundle
+            hfilt = bundle.hfilt
+            nvf = bundle.noise_var_factor
+        else:
+            # device filter build: |factor|^2 with the delta
+            # image's own maxk cut ARE the impulse transfers;
+            # the harmonic-deficit solve runs on geometry cached
+            # per grid (_solve)
+            from ..fusion_filter import _predict_noise_var_factor
+            from ._solve import solve_filters
+
+            dc2 = self._delta_kcut(bundle) ** 2
+            pts = {}
+            pts_rot = {}
+            for i, t in enumerate(self.types):
+                pts[t] = cp.asnumpy(
+                    (cp.abs(fA64[i]) ** 2)
+                    * (g.arg2A[i] <= dc2)
+                ).reshape(npix, npix)
+                pts_rot[t] = cp.asnumpy(
+                    (cp.abs(fN64[i]) ** 2)
+                    * (g.arg2N[i] <= dc2)
+                ).reshape(npix, npix)
+            hfilt = solve_filters(
+                pts, pts_rot, npix, bundle.scale, self.types,
+                full=bundle.filter_full,
+            )
+            nvf = _predict_noise_var_factor(
+                pts=pts, pts_rot=pts_rot, hfilt=hfilt,
+                types=self.types,
+            )
+            bundle.noise_var_factor = nvf
+
+        facA = [f.astype(self._cdt) for f in fA64]
+        facN = [
+            (fN64[i] * cp.asarray(
+                hfilt[self.types[i]].ravel())).astype(self._cdt)
+            for i in range(nt)
+        ]
 
         out = dict(
-            facA=facA, facN=facN, grids=g, npix=bundle.npix,
-            psf_maxk_pix=bundle.psf_maxk_pix,
+            facA=facA, facN=facN, grids=g, npix=npix,
+            psf_maxk_pix=bundle.psf_maxk_pix, nvf=nvf,
+            hfilt=hfilt,
         )
         self._factors[key] = out
         while len(self._factors) > self._factor_cache:
@@ -299,14 +360,16 @@ class FusionEngine:
         }
 
     def get_bundle(self, obs):
-        """a PsfBundle for this observation's psf, LRU-cached on
-        the psf content: repeated psfs skip the CPU derivation"""
+        """a PsfCore for this observation's psf, LRU-cached on
+        the psf content: repeated psfs skip the CPU derivation.
+        The fusion filter is built on device at first use
+        (stage-2 path)."""
         psf_image = np.asarray(obs.psf.image, dtype=float)
         key = (psf_image.tobytes(), psf_image.shape)
         if key in self._bundles:
             self._bundles.move_to_end(key)
             return self._bundles[key]
-        bundle = PsfBundle(
+        bundle = PsfCore(
             psf_image=psf_image,
             wcs=obs.jacobian.get_galsim_wcs(),
             types=self.types, dim=self.dim,
