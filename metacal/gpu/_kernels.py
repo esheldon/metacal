@@ -11,7 +11,15 @@ factors are built in fp64 and cast once; the fp32 kernel then runs
 the per-cell work in single precision.  fp32 image tables may also
 be built natively in fp32 (build_table_fp32), which is faster and
 safe for the image side.
+
+The CUDA source lives in cuda/gather.cu as a real file;
+gather_kernel loads it behind a generated #define prologue carrying
+the precision (REAL), the per-precision kernel name (GATHER_NAME,
+kept distinct so profiler traces tell fp32 from fp64), and the
+fitted coefficient table.  See _load_cuda_source for why local
+includes are stripped rather than resolved by nvrtc.
 """
+import os
 import numpy as np
 import cupy as cp
 
@@ -34,52 +42,32 @@ def _fit_quintic():
     return np.array(coeffs)  # (3 pieces, 6 coeffs), in t = x - piece
 
 
-_KERNEL_TEMPLATE = r'''
-#include <cupy/complex.cuh>
+_CUDA_DIR = os.path.join(os.path.dirname(__file__), 'cuda')
 
-__device__ inline REAL qxval(REAL x)
-{
-    x = fabs(x);
-    int a = (int)floor(x);
-    if (a > 2) return (REAL)0;
-    REAL t = x - a;
-    const double* c = QC + 6 * a;
-    return (REAL)(c[0] + t*(c[1] + t*(c[2] + t*(c[3]
-                   + t*(c[4] + t*c[5])))));
-}
+_CUDA_FILES = ('gather.cu',)
 
-extern "C" __global__
-void gather_SUF(const complex<REAL>* __restrict__ tab,
-                const int npad, const REAL dk,
-                const REAL* __restrict__ kx,
-                const REAL* __restrict__ ky,
-                const long n,
-                complex<REAL>* __restrict__ out)
-{
-    long i = (long)blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= n) return;
-    REAL fx = kx[i] / dk;
-    REAL fy = ky[i] / dk;
-    int jx0 = (int)floor(fx) - 2;
-    int jy0 = (int)floor(fy) - 2;
-    REAL wx[6], wy[6];
-    for (int j = 0; j < 6; j++) {
-        wx[j] = qxval(fx - (REAL)(jx0 + j));
-        wy[j] = qxval(fy - (REAL)(jy0 + j));
-    }
-    complex<REAL> acc(0, 0);
-    for (int a = 0; a < 6; a++) {
-        int iy = (jy0 + a) % npad; if (iy < 0) iy += npad;
-        complex<REAL> row(0, 0);
-        for (int b = 0; b < 6; b++) {
-            int ix = (jx0 + b) % npad; if (ix < 0) ix += npad;
-            row += tab[(long)iy * npad + ix] * wx[b];
-        }
-        acc += row * wy[a];
-    }
-    out[i] = acc;
-}
-'''
+
+def _load_cuda_source():
+    """read and concatenate the kernel sources, stripping the
+    tooling-only local-include/#pragma lines (the <cupy/...>
+    system include stays: nvrtc resolves it from cupy's own,
+    version-pinned headers).  Everything local lands in the one
+    source string handed to cupy so its on-disk compile cache
+    stays keyed on actual content; a local #include resolved by
+    nvrtc at compile time would not be hashed, and editing that
+    file would silently reuse the stale cubin"""
+    parts = []
+    for fname in _CUDA_FILES:
+        with open(os.path.join(_CUDA_DIR, fname)) as fobj:
+            text = fobj.read()
+        keep = [
+            ln for ln in text.split('\n')
+            if not ln.startswith('#include "')
+            and not ln.startswith('#pragma once')
+        ]
+        parts.append('\n'.join(keep))
+    return '\n'.join(parts)
+
 
 _QCOEF = None
 _MODULES = {}
@@ -95,12 +83,13 @@ def gather_kernel(fp32):
         if _QCOEF is None:
             _QCOEF = _fit_quintic()
         vals = ', '.join(f'{v:.17e}' for v in _QCOEF.ravel())
-        src = (
-            f'__constant__ double QC[18] = {{{vals}}};\n'
-            + _KERNEL_TEMPLATE.replace(
-                'REAL', 'float' if fp32 else 'double'
-            ).replace('SUF', key)
-        )
+        prologue = '\n'.join([
+            f'#define GATHER_NAME gather_{key}',
+            f"#define REAL {'float' if fp32 else 'double'}",
+            f'#define QC_VALUES_H {vals}',
+            '',
+        ])
+        src = prologue + _load_cuda_source()
         _MODULES[key] = cp.RawKernel(src, f'gather_{key}')
     return _MODULES[key]
 
