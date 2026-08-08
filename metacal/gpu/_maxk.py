@@ -18,6 +18,10 @@ import numpy as np
 
 MAXK_THRESHOLD = 1.0e-3
 
+# runaway guard on the per-npad ring cache (~12 MB device per
+# entry): sane workloads see one pad size per engine dim
+RING_CACHE_SIZE = 8
+
 _RING_CACHE = {}
 _KRANGE = {}
 
@@ -48,6 +52,8 @@ def ring_masks(npad, cp):
     if iy > 0, (ix,iy) if ix > 0 and iy != No2."""
     if npad in _RING_CACHE:
         return _RING_CACHE[npad]
+    while len(_RING_CACHE) >= RING_CACHE_SIZE:
+        _RING_CACHE.pop(next(iter(_RING_CACHE)))
     No2 = npad // 2
     mask = np.zeros((npad, npad), dtype=bool)
     ring = np.zeros((npad, npad), dtype=np.int32)

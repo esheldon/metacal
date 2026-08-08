@@ -48,6 +48,7 @@ SHEARS = {
 }
 
 DEFAULT_FACTOR_CACHE = 8
+DEFAULT_GRIDS_CACHE = 8
 
 
 def shear_matrix(g1, g2):
@@ -146,10 +147,21 @@ class FusionEngine:
         (LRU keyed on psf content).  Repeated psfs — a fixed-psf
         simulation, or reprocessing the same cell — hit the
         cache; a stream of distinct psfs costs a few ms each.
+        Match it to the psf access pattern, not to memory: 2
+        suffices for per-image psfs, larger helps fixed-psf
+        reprocessing.
+    grids_cache: int
+        how many (psf_dim, npix) grid sets to keep (LRU, ~46 MB
+        per three-type entry at npix 384).  A runaway guard for
+        long runs on varying inputs, not a tuning knob: sane
+        workloads see a few entries, so the default never
+        evicts.  Eviction is safe — live factor entries hold
+        references to their grids.
     """
 
     def __init__(self, dim, types, fp32=True,
-                 factor_cache=DEFAULT_FACTOR_CACHE):
+                 factor_cache=DEFAULT_FACTOR_CACHE,
+                 grids_cache=DEFAULT_GRIDS_CACHE):
         import cupy as cp
 
         self.cp = cp
@@ -161,18 +173,23 @@ class FusionEngine:
         self._kern = _kernels.gather_kernel(fp32)
         self._kern64 = _kernels.gather_kernel(False)
         self._krange_pix = lanczos15_krange_pix()
-        self._grids = {}
+        self._grids = OrderedDict()
         self._factors = OrderedDict()
         self._bundles = OrderedDict()
         self._factor_cache = int(factor_cache)
+        self._grids_cache = int(grids_cache)
 
     def _get_grids(self, psf_dim, npix):
         key = (psf_dim, npix)
-        if key not in self._grids:
+        if key in self._grids:
+            self._grids.move_to_end(key)
+        else:
             self._grids[key] = _KGrids(
                 self.cp, self.dim, psf_dim, npix, self.types,
                 self._fdt,
             )
+            while len(self._grids) > self._grids_cache:
+                self._grids.popitem(last=False)
         return self._grids[key]
 
     def _delta_kcut(self, bundle):

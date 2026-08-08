@@ -17,6 +17,10 @@ import numpy as np
 
 from ..fusion_filter import _trapz_weights
 
+# runaway guard (host memory, a few MB per (npix, scale)): sane
+# workloads see a handful of entries
+GEOM_CACHE_SIZE = 16
+
 _GEOM_CACHE = {}
 
 
@@ -55,6 +59,8 @@ class SolveGeometry:
 def get_geometry(npix, scale):
     key = (int(npix), round(float(scale), 12))
     if key not in _GEOM_CACHE:
+        while len(_GEOM_CACHE) >= GEOM_CACHE_SIZE:
+            _GEOM_CACHE.pop(next(iter(_GEOM_CACHE)))
         _GEOM_CACHE[key] = SolveGeometry(npix, scale)
     return _GEOM_CACHE[key]
 
