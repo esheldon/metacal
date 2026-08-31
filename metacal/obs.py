@@ -52,9 +52,17 @@ def metacal_obs(
         types=types,
     )
 
-    # pack each back into a ngmix.Observation, rescaling the weight map for the
-    # noise-variance increase from the correction (a no-op when
-    # noise_var_factor is 1, i.e. no correction was applied)
+    return package_metacal_obs(res=res, obs=obs, rng=rng)
+
+
+def package_metacal_obs(res, obs, rng):
+    """
+    pack a MetacalResult back into a dict of ngmix.Observation,
+    rescaling the weight map for the noise-variance increase from the
+    correction (a no-op when noise_var_factor is 1, i.e. no correction
+    was applied) and installing the reconvolution psf with its dither.
+    Shared by the CPU path above and the gpu engine.
+    """
     odict = {}
     for key, image in res.items():
 

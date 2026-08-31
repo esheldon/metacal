@@ -13,6 +13,10 @@ dependencies = ["numpy", "galsim"]
 
 [project.optional-dependencies]
 test = ["pytest"]
+gpu = ["cupy"]
 
 [tool.setuptools.packages.find]
 include = ["metacal*"]
+
+[tool.setuptools.package-data]
+"metacal.gpu" = ["cuda/*.cu", "cuda/*.cuh"]
