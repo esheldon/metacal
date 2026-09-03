@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          python-version: ${{ matrix.python-version }}
+          activate-environment: metacal
+
+      - name: Install dependencies
+        run: |
+          conda install --yes ruff \
+            --file requirements.txt \
+            --file dev-requirements.txt
+          conda list
+
+      - name: Install package
+        run: pip install --no-deps -e .
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Test
+        run: pytest -v tests
