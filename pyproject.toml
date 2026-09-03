@@ -9,6 +9,8 @@ description = "Metacalibration weak lensing shear calibration"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "Erin Scott Sheldon" }]
+license = "MIT"
+license-files = ["LICENSE-MIT"]
 dependencies = ["numpy", "galsim"]
 
 [project.optional-dependencies]
