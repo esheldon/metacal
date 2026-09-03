@@ -6,7 +6,7 @@ This package supercedes the metacal code that was part of `ngmix`.
 
 We provide the "fusion" noise correction that increases the noise by only a few
 percent for typical PSFs, as compared to the old correction that increases it
-by `sqrt(2)` in all cases.  We also provide the `Symmetrize` and `AZGauss`
+by `sqrt(2)` in all cases.  We also provide the `AZGauss` and `Symmetrize`
 psf targets.
 
 Examples
@@ -25,14 +25,14 @@ res = metacal.metacal_image(
     image=image,
     psf_image=psf_image,
     wcs=wcs,
-    target_psf=metacal.Symmetrize(nrot=4, rng=rng),
+    target_psf=metacal.AZGauss(),
     types=('noshear', '1p', '1m', '2p', '2m'),
 )
 ```
 
 `metacal_image` implements the basic metcalibration operations.  No noise
 correction is applied.  The `target_psf` is specified by the user, either as a
-callable or a `galsim.GSObject`.  We provide `Symmetrize` and `AZGauss`.  The
+callable or a `galsim.GSObject`.  We provide `AZGauss` and `Symmetrize`.  The
 `wcs` is a `local/Jacobian galsim WCS`.
 
 The returned `res` is a `MetacalResult`, which is a `dict`-like keyed by
@@ -51,7 +51,7 @@ res = metacal.metacal_noise_correct(
     noise_image=noise_image,
     noise_filter=metacal.FusionFilter(),
     wcs=wcs,
-    target_psf=metacal.Symmetrize(nrot=4, rng=rng),
+    target_psf=metacal.AZGauss(),
     types=('noshear', '1p', '1m', '2p', '2m'),
 )
 ```
@@ -74,7 +74,7 @@ import metacal
 res = metacal.metacal_obs(
     obs=obs,
     noise_filter=metacal.FusionFilter(),
-    target_psf=metacal.Symmetrize(nrot=4, rng=rng),
+    target_psf=metacal.AZGauss(),
     types=('noshear', '1p', '1m', '2p', '2m'),
     rng=rng,
 )
