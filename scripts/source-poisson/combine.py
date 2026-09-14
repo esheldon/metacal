@@ -28,6 +28,7 @@ def combine(files):
     out['sky_var'] = rows[0].get('sky_var')
     out['peak_over_skyvar'] = rows[0]['peak_over_skyvar']
     out['noise_var_factor'] = rows[0]['noise_var_factor']
+    out['m_noiseless'] = rows[0].get('m_noiseless')
     return out
 
 
@@ -48,6 +49,14 @@ def main():
             print(
                 f"    {key:3s} = {mean:+.5f} +/- {err:.5f}   "
                 f"({mean / err:+.1f} sigma; seed chi2/dof = {chi2:.1f}/{dof})"
+            )
+        if o['m_noiseless'] is not None:
+            mean, err, _, _ = o['m']
+            m0 = o['m_noiseless']
+            d = mean - m0
+            print(
+                f"    m - m_noiseless = {d:+.5f} +/- {err:.5f}   "
+                f"({d / err:+.1f} sigma; m_noiseless = {m0:+.5f})"
             )
 
 

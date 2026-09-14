@@ -167,7 +167,33 @@ def run_case(case, nreal, seed, flux, sky_var):
 
     dt = time.time() - t0
     e = {s: {t: np.array(v) for t, v in e[s].items()} for s in e}
-    return summarize(e, nfail, dt, fac, gals, flux, sky_var)
+    out = summarize(e, nfail, dt, fac, gals, flux, sky_var)
+    out['m_noiseless'], out['c1_noiseless'] = noiseless(
+        psf_im, gals, wcs, target_psf,
+    )
+    return out
+
+
+def noiseless(psf_im, gals, wcs, target_psf):
+    """
+    m and c1 of the pair estimator on the noiseless images: the finite
+    shear step and the +/-g nonlinearity give a small offset (~3e-4 in m)
+    that is not noise bias; compare the noisy m against this
+    """
+    e = {}
+    for s in gals:
+        res = metacal.metacal_image(
+            image=gals[s], psf_image=psf_im, wcs=wcs,
+            target_psf=target_psf, types=TYPES,
+        )
+        e[s] = {t: measure(res[t]) for t in TYPES}
+    r11 = 0.5 * (
+        (e[1]['1p'][0] - e[1]['1m'][0])
+        + (e[-1]['1p'][0] - e[-1]['1m'][0])
+    ) / (2 * SHEAR_STEP)
+    m = (e[1]['noshear'][0] - e[-1]['noshear'][0]) / (2 * r11 * GTRUE) - 1
+    c1 = (e[1]['noshear'][0] + e[-1]['noshear'][0]) / (2 * r11)
+    return float(m), float(c1)
 
 
 def summarize(e, nfail, dt, fac, gals, flux, sky_var):
