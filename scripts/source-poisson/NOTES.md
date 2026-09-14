@@ -69,24 +69,30 @@ same sky, not a fainter object with a rescaled sky.
 |------|------|---------------------------|---------|-------|---------------------|----------------------|
 | 1000 | 15   | 0.58                      | poisson | 18000 | -0.0008 +/- 0.0011  | -0.00017 +/- 0.00014 |
 | 3000 | ~45  | 1.73                      | poisson | 18000 | +0.00045 +/- 0.00016 | -0.00002 +/- 0.00002 |
+| 3000 | ~45  | (sky noise only)          | sky     | 18000 | +0.00034 +/- 0.00010 | +0.00001 +/- 0.00001 |
 
 The pair estimator has a noiseless offset of m = +0.00035 at both fluxes
 (finite shear step plus the +/-0.02 nonlinearity; c1 is ~1e-7).  That is
 not noise bias; the script now records it as `m_noiseless` and
 `combine.py` prints m - m_noiseless.  Relative to it:
 
-| flux | m - m_noiseless        |
-|------|------------------------|
-| 1000 | -0.0012 +/- 0.0011     |
-| 3000 | +0.0001 +/- 0.00016    |
+| flux | case    | m - m_noiseless        |
+|------|---------|------------------------|
+| 1000 | poisson | -0.0012 +/- 0.0011     |
+| 3000 | poisson | +0.0001 +/- 0.00016    |
+| 3000 | sky     | -0.0000 +/- 0.00010    |
+
+Conclusion so far: with the source Poisson term in both the image and the
+noise realization, the corrected shear is unbiased to 1e-3 at s2n 15 and
+to 2e-4 at s2n 45, and at s2n 45 it agrees with the sky-only case
+(difference +0.0001 +/- 0.0002).  c1 and c2 are zero at 2e-5.
 
 For scale, the uncorrected (nocorr) bias at flux 1000 is roughly +0.6 to
 +1 percent from short sizing runs, so the correction removes it to within
 about a tenth of its size with the source term present.  At flux 3000
 the expected uncorrected bias is ~1e-3 (it scales as 1/s2n^2), so the
-0.00016 error there still resolves it.  The sky-only baseline at flux
-3000 is running (seeds 41-46) to confirm the corrected sky case sits at
-the same place.
+0.00016 error there still resolves it, but nocorr has not been run at
+that flux.
 
 ## Not yet done
 
