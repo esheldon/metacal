@@ -98,8 +98,7 @@ that flux.
 
 Objects on a grid at random sub-pixel positions, detected with sep and
 measured with weighted moments through simcoadd-mdet, so the centers
-come from detection.  Needed changes in the two sim repos (uncommitted
-as of 2026-09-15, on their `main` branches):
+come from detection.
 
 - simcoadd: `SourcePoissonNoiseField(rng, base, gain)` in
   `simcoadd/noise/poisson.py` wraps any sky noise field (white or
@@ -118,15 +117,32 @@ as of 2026-09-15, on their `main` branches):
 Units: the source term is Gaussian with the Poisson variance from the
 true model, not a Poisson draw.
 
-Regime: at fixed sky, S/N and the peak source-variance-to-sky ratio
-both scale with flux, so a Poisson-dominated object at moderate S/N is
-faint on a dark sky.  `noise_factor` scales the sky alone:
+Regime: the peak-source-variance-to-sky-variance ratio is the ratio of
+the object's peak surface brightness to the sky surface brightness,
+and it is invariant under exposure time and the number of coadded
+exposures (sky and source counts both scale the same way; only S/N
+grows).  descwl's LSST i sky is 20.5 mag/arcsec^2 (32.5 e-/s/pixel,
+975 e- per 30 s visit, 179476 e- over the 184-visit year-10 coadd).
+For the exp hlr 0.5" galaxy the psf-convolved peak is 0.43 mag/arcsec^2
+brighter than the total magnitude, so at the real LSST sky:
 
-| mag  | noise_factor | matched S/N | peak src var / sky var |
-|------|--------------|-------------|------------------------|
-| 24.5 | 1.0          | 23          | 0.011  (LSST as is)    |
-| 28.8 | 0.0143       | 31          | 0.99                   |
-| 29.0 | 0.01         | 37          | 1.7                    |
+| mag  | matched S/N | peak src var / sky var |
+|------|-------------|------------------------|
+| 20.0 | 1450        | 0.67                   |
+| 21.0 | 580         | 0.27                   |
+| 22.0 | 230         | 0.11                   |
+| 24.5 | 23          | 0.011                  |
+
+So in LSST the source term matters only for objects at S/N in the
+hundreds, where noise bias is negligible.  A regime with both effects
+at once is a dark (space-like) sky; `noise_factor` scales the sky
+alone, so mag 28.8 with noise_factor 0.0143 gives S/N 31 with ratio
+0.99 (2100 e- on 37 e-/pixel of sky).  That is the same regime as the
+perfect-center test (sky 23 e-/pixel), a stress test, not LSST.
+
+Configs: `lsst-bright-*` (mag 21, real sky: the LSST-realistic case,
+run locally) and `stress-*` (mag 28.8, noise_factor 0.0143: the
+stress test, for Erin's remote condor system).
 
 `mdet/run_pairs.py` builds the +g/-g configs, runs matched seeds in a
 process pool and calls `simcoadd-mdet-doshear-cancel` with
