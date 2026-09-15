@@ -1,0 +1,17 @@
+fitter: "wmom"
+# wmom sizes are post-psf, so the ratio to the psf size starts at 1
+Trat_min: 1.2
+Trat_max: 6.0
+s2n_min: 10
+s2n_max: 10000
+
+e_flags_name: "e_flags"
+e1_name: "e1"
+e1_err_name: "e1_err"
+e2_name: "e2"
+e2_err_name: "e2_err"
+s2n_name: "s2n"
+T_name: "T"
+
+weight_type: "shapenoise"
+SN: 0.25
