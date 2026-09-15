@@ -142,7 +142,7 @@ perfect-center test (sky 23 e-/pixel), a stress test, not LSST.
 
 Configs: `lsst-bright-*` (mag 21, real sky: the LSST-realistic case,
 run locally) and `stress-*` (mag 28.8, noise_factor 0.0143: the
-stress test, for Erin's remote condor system).
+stress test, for the remote condor system).
 
 `mdet/run_pairs.py` builds the +g/-g configs, runs matched seeds in a
 process pool and calls `simcoadd-mdet-doshear-cancel` with
@@ -194,11 +194,29 @@ python mdet/run_pairs.py --outdir out --mag 28.8 --noise-factor 0.0143 \
     --nseeds 60 --ntrial 2 --seed0 1000 --nproc 6
 ```
 
+### Detection results, LSST-realistic case (2026-09-15)
+
+mag 21 on the real LSST i sky (`lsst-bright-*` configs), psf g_sigma
+0.03, 100 seeds x 10 trials per sign, 25000 objects per sign per case,
+~17 min per case on 6 cores.  T/Tpsf 1.445 in both.
+
+| case    | wmom S/N | R      | m1                   | shear2 (c2)            |
+|---------|----------|--------|----------------------|------------------------|
+| poisson | 514      | 0.3826 | +0.00011 +/- 0.00091 | +0.000026 +/- 0.000017 |
+| sky     | 562      | 0.3826 | +0.00018 +/- 0.00085 | +0.000014 +/- 0.000017 |
+
+Both unbiased at the 1e-3 level and equal to each other; the source
+term lowers the measured S/N by 9% as expected from the weight map.
+At this S/N the error scales as ~0.14 / sqrt(N_obj), 20x better than
+the S/N 23 calibration.  Outputs were in the session scratchpad
+(`mdet_bright/{poisson,sky}/shear.fits`); the numbers above are the
+record.
+
 ## Not yet done
 
 - sky and nocorr baselines at the same precision with the fixed-flux setup
 - the mismatch case
 - flux 10000 at sky variance 23 (peak ratio ~5.8)
-- detection phase: calibration run for the error scaling, then the
-  source-poisson and sky-only pairs at the chosen regime
+- detection phase, stress regime: the condor runs of the `stress-*`
+  configs (results to be added here)
 - no GPU runs for these tests (CPU only, by decision)
