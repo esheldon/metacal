@@ -13,6 +13,7 @@ from metacal.fusion_filter import (
     _make_fusion_filters_kspace,
 )
 from metacal.wcs import distortion_matrix, galsim_wcs
+from metacal import DeltaImpulse
 
 DIM = 48
 SCALE = 0.2
@@ -55,6 +56,7 @@ def test_delta_transfer_padded(theta):
     """
     psf_image, gal_im, wcs = _build(theta)
     pts, npix = _impulse_transfer_kspace(
+        impulse=DeltaImpulse()(DIM, wcs),
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -126,6 +128,7 @@ def test_sky_rot_conformal_matches_pixel(theta):
     """
     psf_image, gal_im, wcs = _build(theta)
     _, npix = _impulse_transfer_kspace(
+        impulse=DeltaImpulse()(DIM, wcs),
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -173,6 +176,7 @@ def test_sky_rot_diverges_under_distortion():
         .array
     )
     _, npix = _impulse_transfer_kspace(
+        impulse=DeltaImpulse()(DIM, wcs),
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -210,6 +214,7 @@ def test_kspace_filters_finite_and_capped():
     psf_image, gal_im, wcs = _build(45.0)
     jmat = distortion_matrix(SCALE, theta=45 * galsim.degrees, g1=0, g2=0)
     pts, npix = _impulse_transfer_kspace(
+        impulse=DeltaImpulse()(DIM, wcs),
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),
@@ -217,6 +222,7 @@ def test_kspace_filters_finite_and_capped():
         types=TYPES,
     )
     pts_rot, _ = _impulse_transfer_kspace(
+        impulse=DeltaImpulse()(DIM, wcs),
         psf_image=psf_image,
         wcs=wcs,
         target_psf=AZGauss(),

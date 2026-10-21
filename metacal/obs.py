@@ -4,6 +4,7 @@ from .noise_correct import metacal_noise_correct
 def metacal_obs(
     obs,
     noise_filter,
+    noise_kernel,
     target_psf,
     rng,
     types,
@@ -19,6 +20,10 @@ def metacal_obs(
     noise_filter: callable
         A callable that generates the filters. See metacal.FusionFilter
         for an example
+    noise_kernel: callable
+        The noise kernel, the impulse response of the process that generated
+        the noise in the image: metacal.DeltaImpulse() for white noise, or a
+        metacal.ImpulseResponse for correlated noise.  See metacal.noise_kernel
     target_psf: A callable that returns a galsim object or a galsim.GSObject
         This should be a galsim.GSObject or a callable with target_psf(psf=psf,
         flux=flux), with psf a galsim object such as galsim.InterpolatedImage.
@@ -47,6 +52,7 @@ def metacal_obs(
         psf_image=obs.psf.image,
         noise_image=obs.noise,
         noise_filter=noise_filter,
+        noise_kernel=noise_kernel,
         wcs=wcs,
         target_psf=target_psf,
         types=types,

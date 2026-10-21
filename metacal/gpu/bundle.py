@@ -187,12 +187,16 @@ class PsfBundle(PsfCore):
             psf_image, wcs, types, dim,
             target_psf=target_psf, noise_filter=noise_filter,
         )
+        from ..noise_kernel import DeltaImpulse
+
         if noise_filter is None:
             noise_filter = FusionFilter()
+        # the device filter build assumes white noise (a delta's
+        # k-table is exactly ones), so the CPU reference does too
         self.hfilt, self.noise_var_factor = noise_filter(
             psf_image=self.psf_image, wcs=self.wcs,
             target_psf=self._target_psf_obj, dim=self.dim,
-            types=self.types,
+            types=self.types, noise_kernel=DeltaImpulse(),
         )
         npix_filt = self.hfilt[self.types[0]].shape[0]
         assert npix_filt == self.npix, (

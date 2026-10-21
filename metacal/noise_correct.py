@@ -3,6 +3,7 @@ def metacal_noise_correct(
     psf_image,
     noise_image,
     noise_filter,
+    noise_kernel,
     wcs,
     target_psf,
     types,
@@ -22,6 +23,10 @@ def metacal_noise_correct(
     noise_filter: callable
         A callable that generates the filters. See metacal.FusionFilter
         for an example
+    noise_kernel: callable
+        The noise kernel, the impulse response of the process that generated
+        the noise in image: metacal.DeltaImpulse() for white noise, or a
+        metacal.ImpulseResponse for correlated noise.  See metacal.noise_kernel
     wcs: galsim WCS
         A galsim local wcs/Jacobian.  May also be given as the 2x2 pixel->sky
         matrix (col, row order) instead of a galsim wcs
@@ -62,6 +67,7 @@ def metacal_noise_correct(
         target_psf=target_psf,
         dim=dim,
         types=types,
+        noise_kernel=noise_kernel,
     )
 
     npix = hfilt[types[0]].shape[0]

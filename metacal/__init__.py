@@ -11,6 +11,9 @@ from .noise_correct import metacal_noise_correct
 from . import fusion_filter
 from .fusion_filter import FusionFilter
 
+from . import noise_kernel
+from .noise_kernel import DeltaImpulse, ImpulseResponse
+
 from .  import obs
 from .obs import metacal_obs
 

@@ -50,6 +50,7 @@ res = metacal.metacal_noise_correct(
     psf_image=psf_image,
     noise_image=noise_image,
     noise_filter=metacal.FusionFilter(),
+    noise_kernel=metacal.DeltaImpulse(),
     wcs=wcs,
     target_psf=metacal.AZGauss(),
     types=('noshear', '1p', '1m', '2p', '2m'),
@@ -63,6 +64,34 @@ the total noise by a few percent for typical PSFs.
 
 The noise can be correlated and non stationary.
 
+### Correlated noise
+
+The transfer function is measured by pushing the `noise_kernel`, the impulse
+response of the process that generated the noise, through the metacal
+operator.  `metacal.DeltaImpulse()` represents white noise.  For correlated
+noise, send a `metacal.ImpulseResponse`, an image `G` whose power spectrum is
+the noise power spectrum, `|FT(G)|^2 = N`, for example the position-averaged
+resampling response of a coadd:
+
+```python
+# from the known response of the noise process
+noise_kernel = metacal.ImpulseResponse(response_image)
+
+# from the noise autocorrelation function
+noise_kernel = metacal.ImpulseResponse.from_autocorr(xi)
+
+# from an analytic correlation
+noise_kernel = metacal.ImpulseResponse.from_gsobject(galsim.Gaussian(sigma=0.2))
+```
+
+The metacal shear acts on the noise correlation as it does on the galaxy, so
+the correction built from a white-noise transfer is only approximate for
+correlated noise.  For Lanczos-3 coadds at unit pixel ratio ignoring the
+correlated noise results in a small multiplicative bias 0.0006 level.  For
+strongly correlated noise (correlation lengths of a pixel or more) the kernel
+matters.  The kernel should come from the known noise process; the
+autocorrelation of a single noise realization is far too noisy.
+
 # Processing an `ngmix.Observation`
 
 Metacalibration can also be run on an `ngmix.Observation` (although ngmix is not
@@ -74,6 +103,7 @@ import metacal
 res = metacal.metacal_obs(
     obs=obs,
     noise_filter=metacal.FusionFilter(),
+    noise_kernel=metacal.DeltaImpulse(),
     target_psf=metacal.AZGauss(),
     types=('noshear', '1p', '1m', '2p', '2m'),
     rng=rng,

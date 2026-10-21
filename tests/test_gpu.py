@@ -72,6 +72,7 @@ def test_per_psf_parity(fp32, tol):
         obs, sig = _make_obs(11 + k, psf)
         oracle = metacal.metacal_obs(
             obs=obs, noise_filter=metacal.FusionFilter(),
+            noise_kernel=metacal.DeltaImpulse(),
             target_psf=metacal.AZGauss(),
             rng=np.random.RandomState(99), types=list(types),
         )
@@ -95,11 +96,13 @@ def test_five_types():
     obs, sig = _make_obs(12, PSFS[0])
     oracle = metacal.metacal_obs(
         obs=obs, noise_filter=metacal.FusionFilter(),
+        noise_kernel=metacal.DeltaImpulse(),
         target_psf=metacal.AZGauss(),
         rng=np.random.RandomState(3), types=list(types),
     )
     mine = metacal_obs(
         obs=obs, noise_filter=metacal.FusionFilter(),
+        noise_kernel=metacal.DeltaImpulse(),
         target_psf=metacal.AZGauss(),
         rng=np.random.RandomState(3), types=list(types),
     )
@@ -165,6 +168,7 @@ def test_rejects_unsupported():
         metacal_obs(
             obs=obs,
             noise_filter=metacal.FusionFilter(),
+            noise_kernel=metacal.DeltaImpulse(),
             target_psf=metacal.Symmetrize(
                 4, np.random.RandomState(1)),
             rng=np.random.RandomState(1),
