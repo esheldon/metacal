@@ -50,15 +50,17 @@ def get_engine(dim, types, fp32=True):
     return _ENGINE_CACHE[key]
 
 
-def metacal_obs(obs, noise_filter, target_psf, rng, types,
+def metacal_obs(obs, noise_filter, noise_kernel, target_psf, rng, types,
                 fp32=True):
     """
     drop-in for metacal.metacal_obs running on the gpu; see
     metacal.obs.metacal_obs for the contract.  Handles any psf
-    (the per-psf derivation is cached on psf content).
+    (the per-psf derivation is cached on psf content).  White
+    noise only: the noise_kernel must be a DeltaImpulse.
     """
     from ..azgauss_target_psf import AZGauss
     from ..fusion_filter import FusionFilter
+    from ..noise_kernel import DeltaImpulse
 
     if target_psf is not None and \
             not isinstance(target_psf, AZGauss):
@@ -72,6 +74,11 @@ def metacal_obs(obs, noise_filter, target_psf, rng, types,
             f'the gpu engine implements the FusionFilter noise '
             f'correction only, got '
             f'{type(noise_filter).__name__}'
+        )
+    if not isinstance(noise_kernel, DeltaImpulse):
+        raise NotImplementedError(
+            f'the gpu engine implements white noise (DeltaImpulse) '
+            f'only, got {type(noise_kernel).__name__}'
         )
     eng = get_engine(dim=obs.image.shape[0], types=types,
                      fp32=fp32)

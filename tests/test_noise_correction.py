@@ -13,6 +13,7 @@ from metacal.fusion_filter import (
     _make_fusion_filters_kspace,
 )
 from metacal.wcs import distortion_matrix, galsim_wcs
+from metacal import DeltaImpulse
 
 DIM = 48
 SCALE = 0.2
@@ -62,6 +63,7 @@ def test_metacal_fusion_runs(wcs_kw):
         psf_image=psf_image,
         noise_image=noise,
         noise_filter=metacal.FusionFilter(),
+        noise_kernel=metacal.DeltaImpulse(),
         wcs=wcs,
         target_psf=metacal.AZGauss(),
         types=TYPES,
@@ -87,6 +89,7 @@ def test_wcs_can_be_a_matrix():
         psf_image=psf_image,
         noise_image=noise,
         noise_filter=noise_filter,
+        noise_kernel=metacal.DeltaImpulse(),
         wcs=wcs,
         target_psf=metacal.AZGauss(),
         types=TYPES,
@@ -97,6 +100,7 @@ def test_wcs_can_be_a_matrix():
         psf_image=psf_image,
         noise_image=noise,
         noise_filter=noise_filter,
+        noise_kernel=metacal.DeltaImpulse(),
         wcs=M,
         target_psf=metacal.AZGauss(),
         types=TYPES,
@@ -148,6 +152,7 @@ def test_fusion_adds_only_the_filtered_deficit():
         psf_image=psf_image,
         noise_image=noise,
         noise_filter=metacal.FusionFilter(),
+        noise_kernel=metacal.DeltaImpulse(),
         wcs=wcs,
         target_psf=target_psf,
         types=TYPES,
@@ -201,6 +206,7 @@ def test_noise_var_factor_grows_with_ellipticity():
         psf_image=psf_r,
         noise_image=nz_r,
         noise_filter=noise_filter,
+        noise_kernel=metacal.DeltaImpulse(),
         wcs=wcs,
         target_psf=target_psf,
         types=TYPES,
@@ -211,6 +217,7 @@ def test_noise_var_factor_grows_with_ellipticity():
         psf_image=psf_e,
         noise_image=nz_e,
         noise_filter=noise_filter,
+        noise_kernel=metacal.DeltaImpulse(),
         wcs=wcs,
         target_psf=target_psf,
         types=TYPES,
@@ -233,6 +240,7 @@ def test_noise_var_factor_predicts_variance_ratio():
         psf_image=psf_image,
         noise_image=noise,
         noise_filter=metacal.FusionFilter(),
+        noise_kernel=metacal.DeltaImpulse(),
         wcs=wcs,
         target_psf=target_psf,
         types=TYPES,
@@ -242,6 +250,7 @@ def test_noise_var_factor_predicts_variance_ratio():
     # sky-angle projection, so jmat defaults to the pixel frame)
     types = ['noshear']
     pts, npix = _impulse_transfer_kspace(
+        impulse=DeltaImpulse()(DIM, wcs),
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
@@ -249,6 +258,7 @@ def test_noise_var_factor_predicts_variance_ratio():
         types=types,
     )
     pts_rot, _ = _impulse_transfer_kspace(
+        impulse=DeltaImpulse()(DIM, wcs),
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,

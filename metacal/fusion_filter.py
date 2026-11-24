@@ -7,6 +7,7 @@ import numpy as np
 import galsim
 
 from .metacalibration import Metacal
+from .noise_kernel import DeltaImpulse
 from ._util import _wcs_and_matrix
 
 
@@ -16,7 +17,12 @@ class FusionFilter:
 
     Uses the transfer function to create a filter for the full noise field
     that adds the minimal amount of noise to correct the spin-2 modes
-    imprinted on the noise by the metacalibration process
+    imprinted on the noise by the metacalibration process.
+
+    The transfer is measured by pushing the noise kernel, the impulse response
+    of the process that generated the noise, through the metacal operator. Use
+    a ``DeltaImpulse`` for white noise and an ``ImpulseResponse`` for
+    correlated noise (see metacal.noise_kernel).
 
     With ``full=True`` the minimal-noise solve is short-circuited: the
     filter is set to its cap (the in-band taper alone), adding the FULL
@@ -45,6 +51,11 @@ class FusionFilter:
         correction right, you need to send the +/- as well as noshear to be
         processed all together.  This is because they are all needed to
         determine the overall level of noise to be used (max among the types).
+    noise_kernel: callable
+        The noise kernel, callable as noise_kernel(dim, wcs) and returning
+        the dim x dim impulse response of the noise process, e.g.
+        metacal.DeltaImpulse() for white noise or a metacal.ImpulseResponse
+        for correlated noise
     """
     def __init__(self, full=False):
         self.full = bool(full)
@@ -56,16 +67,39 @@ class FusionFilter:
         target_psf,
         dim,
         types,
+        noise_kernel,
     ):
         wcs, jmat = _wcs_and_matrix(wcs)
 
-        # one shared padded grid for the transfer, the galaxy and the noise
-        pts, npix = _impulse_transfer_kspace(
+        impulse = np.asarray(noise_kernel(dim, wcs), dtype=float)
+
+        if impulse.shape != (dim, dim):
+            raise ValueError(
+                f'noise_kernel returned shape {impulse.shape}, expected '
+                f'{(dim, dim)}'
+            )
+
+        if not np.all(np.isfinite(impulse)) or not np.any(impulse):
+            raise ValueError(
+                'noise_kernel must return a finite, nonzero image'
+            )
+
+        # one shared padded grid for the transfer, the galaxy and the noise:
+        # galsim's draw size for the delta.  A kernel with real support could
+        # otherwise change the grid the data are drawn on
+        npix = _delta_npix(
+            psf_image=psf_image, wcs=wcs, target_psf=target_psf, dim=dim,
+            types=types,
+        )
+
+        pts, _ = _impulse_transfer_kspace(
             psf_image=psf_image,
             wcs=wcs,
             target_psf=target_psf,
             dim=dim,
             types=types,
+            impulse=impulse,
+            npix=npix,
         )
         pts_rot, _ = _impulse_transfer_kspace(
             psf_image=psf_image,
@@ -73,6 +107,7 @@ class FusionFilter:
             target_psf=target_psf,
             dim=dim,
             types=types,
+            impulse=impulse,
             npix=npix,
             rotation=90 * galsim.degrees,
         )
@@ -89,24 +124,85 @@ class FusionFilter:
         return hfilt, noise_var_factor
 
 
+def _delta_npix(psf_image, wcs, target_psf, dim, types):
+    """
+    Get galsim's padded draw size for a dim x dim image through this metacal.
+
+    A build-only Metacal on the delta impulse; no k-arrays are drawn.
+
+    Parameters
+    ----------
+    psf_image: array
+        the psf image
+    wcs: galsim WCS
+        A galsim local wcs/Jacobian
+    target_psf: callable or galsim.GSObject
+        the reconvolution target, see metacal.AZGauss
+    dim: int
+        the image dimension
+    types: sequence of str
+        the metacal types
+
+    Returns
+    -------
+    int
+        the padded grid size npix
+    """
+    return Metacal(
+        image=DeltaImpulse()(dim, wcs),
+        psf_image=psf_image,
+        wcs=wcs,
+        target_psf=target_psf,
+        types=types,
+    ).npix
+
+
 def _impulse_transfer_kspace(
-    psf_image, wcs, target_psf, dim, types, npix=None, rotation=None
+    psf_image, wcs, target_psf, dim, types, impulse, npix=None, rotation=None
 ):
     """
-    the per-type metacal noise transfer P_t = |K_t|^2 on the padded npix x npix
-    grid, computed k-natively: push a unit delta impulse through ``Metacal``
-    and take |k-array|^2 directly (|fft2(delta)| = 1, so this is relative to a
-    white input).  ``npix`` (default galsim's draw size) must match the Metacal
-    whose noise this filter cancels.  ``rotation = 90 * galsim.degrees`` builds
-    the rotated transfer P_t^rot = |rotateback(metacal(delta))|^2 (the
-    corr-field transfer after the sky rotate-back).
+    Measure the per-type metacal noise transfer on the padded npix grid.
 
-    Returns the npix x npix power dict and the npix used.
+    Computed k-natively: push the impulse through ``Metacal`` and take
+    |k-array|^2 directly.  For the unit delta (|fft2(delta)| = 1) this is
+    P_t = |K_t|^2 relative to a white input; for a correlated-noise impulse
+    response G (|fft2(G)|^2 = N) it is |K_t(k)|^2 N(S_t^-1 k), the transfer
+    for that noise.
+
+    Parameters
+    ----------
+    psf_image: array
+        the psf image
+    wcs: galsim WCS
+        A galsim local wcs/Jacobian
+    target_psf: callable or galsim.GSObject
+        the reconvolution target, see metacal.AZGauss
+    dim: int
+        the image dimension
+    types: sequence of str
+        the metacal types
+    impulse: array
+        the (dim, dim) noise kernel image, see metacal.noise_kernel
+    npix: int, optional
+        the padded grid size; default galsim's draw size for the impulse.
+        Must match the Metacal whose noise this filter cancels
+    rotation: galsim.Angle, optional
+        ``90 * galsim.degrees`` builds the rotated transfer P_t^rot =
+        |rotateback(metacal(impulse))|^2, the corr-field transfer after the
+        sky rotate-back; the impulse is rotated with the field
+
+    Returns
+    -------
+    dict, int
+        the dict type -> (npix, npix) power array, and the npix used
     """
-    delta = np.zeros((dim, dim))
-    delta[dim // 2, dim // 2] = 1.0
+    impulse = np.asarray(impulse, dtype=float)
+    if impulse.shape != (dim, dim):
+        raise ValueError(
+            f'impulse shape {impulse.shape} != {(dim, dim)}'
+        )
     km = Metacal(
-        image=delta,
+        image=impulse,
         psf_image=psf_image,
         wcs=wcs,
         target_psf=target_psf,
@@ -129,7 +225,9 @@ def _make_fusion_filters_kspace(
 
     ``pts`` is the un-rotated image-metacal transfer (the noise to isotropize,
     in its own frame); ``pts_rot`` is the rotated-back corr-field transfer
-    (|T_M(R90 k)|^2).  The common-level m=2/m=6 deficit D is built from ``pts``
+    (|T_M(R90 k)|^2).  Both are relative to the noise kernel they were
+    measured with (white for the delta).  The common-level m=2/m=6 deficit D
+    is built from ``pts``
     (sky-projected, trapz quadrature; ``_common_harmonic_deficits``) and
     divided by ``pts_rot``:
 
@@ -180,10 +278,11 @@ def _predict_noise_var_factor(pts, pts_rot, hfilt, types):
     the factor by which the per-pixel noise variance increases due to the
     rotated-fusion correction, relative to plain (uncorrected) metacal.
 
-    For a white input field the metacal'd image-noise variance is mean(pts)
-    and the added correction variance is mean(H^2 * pts_rot) (both per unit
-    input variance, by Parseval on the padded grid; the per-pixel variance of
-    a filtered white field is the mean of the squared filter).  The corrected
+    The metacal'd image-noise variance is mean(pts) and the added correction
+    variance is mean(H^2 * pts_rot) (both per unit input variance, by Parseval
+    on the padded grid; the per-pixel variance of a filtered white field is
+    the mean of the squared filter; for a correlated input the transfers
+    carry N, see _impulse_transfer_kspace).  The corrected
     variance lands at a common level across types: the deficit fills every
     type's m=0 (azimuthal-mean) power to a common level, and only m=0
     contributes to the total variance (the m=2/m=6 fills integrate to zero over
